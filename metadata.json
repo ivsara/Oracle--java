@@ -1,0 +1,6 @@
+{
+  "name": "Universal Java Studio",
+  "description": "All-version offline Java IDE, version-aware syntax editor, compiler and execution laboratory, JDK 1.0 to 25 version explorer, API reference, tutorials, and assessment platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
