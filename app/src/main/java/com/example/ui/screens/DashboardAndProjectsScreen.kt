@@ -154,12 +154,18 @@ fun HomeDashboardScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Button(
+                                    onClick = { onNavigate(StudioModule.WEB_APP) },
+                                    modifier = Modifier.testTag("dashboard_open_webapp_btn")
+                                ) {
+                                    Text("Launch Web App IDE")
+                                }
+                                OutlinedButton(
                                     onClick = { onNavigate(StudioModule.CODE_EDITOR) },
                                     modifier = Modifier.testTag("dashboard_open_editor_btn")
                                 ) {
                                     Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Open Code Editor")
+                                    Text("Native Editor")
                                 }
                                 OutlinedButton(
                                     onClick = { onNavigate(StudioModule.VERSION_EXPLORER) },

@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 
 enum class StudioModule(val title: String) {
     DASHBOARD("Dashboard"),
+    WEB_APP("Web App IDE"),
     CODE_EDITOR("Code Editor"),
     JDK_MANAGER("JDK Manager"),
     VERSION_EXPLORER("Version Explorer"),

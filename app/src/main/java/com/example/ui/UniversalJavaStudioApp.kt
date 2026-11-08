@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Memory
@@ -70,6 +71,7 @@ import com.example.ui.screens.OfflineTutorialsScreen
 import com.example.ui.screens.ProjectManagementScreen
 import com.example.ui.screens.QuizAssessmentScreen
 import com.example.ui.screens.UniversalJdkManagerScreen
+import com.example.ui.screens.WebAppPortalScreen
 import com.example.ui.theme.IdeEmeraldSuccess
 import com.example.ui.theme.UniversalJavaStudioTheme
 
@@ -135,6 +137,7 @@ fun UniversalJavaStudioApp(viewModel: JavaStudioViewModel) {
                     activeProjectName = activeProjectName,
                     activeJdkVersion = activeJdkVersion,
                     isDarkTheme = isDarkTheme,
+                    isWebAppMode = currentModule == StudioModule.WEB_APP,
                     onSelectJdk = { viewModel.switchProjectJdkVersion(it) },
                     onQuickCompile = {
                         viewModel.navigateTo(StudioModule.CODE_EDITOR)
@@ -143,6 +146,13 @@ fun UniversalJavaStudioApp(viewModel: JavaStudioViewModel) {
                     onQuickRun = {
                         viewModel.navigateTo(StudioModule.CODE_EDITOR)
                         viewModel.runActiveProject()
+                    },
+                    onToggleWebApp = {
+                        if (currentModule == StudioModule.WEB_APP) {
+                            viewModel.navigateTo(StudioModule.DASHBOARD)
+                        } else {
+                            viewModel.navigateTo(StudioModule.WEB_APP)
+                        }
                     },
                     onToggleTheme = { viewModel.toggleTheme() }
                 )
@@ -326,9 +336,11 @@ private fun IdeTopToolbar(
     activeProjectName: String,
     activeJdkVersion: String,
     isDarkTheme: Boolean,
+    isWebAppMode: Boolean,
     onSelectJdk: (String) -> Unit,
     onQuickCompile: () -> Unit,
     onQuickRun: () -> Unit,
+    onToggleWebApp: () -> Unit,
     onToggleTheme: () -> Unit
 ) {
     var jdkDropdownExpanded by remember { mutableStateOf(false) }
@@ -403,6 +415,17 @@ private fun IdeTopToolbar(
                             )
                         }
                     }
+                }
+
+                IconButton(
+                    onClick = onToggleWebApp,
+                    modifier = Modifier.testTag("toolbar_webapp_btn")
+                ) {
+                    Icon(
+                        Icons.Default.Language,
+                        contentDescription = "Toggle Web App Mode",
+                        tint = if (isWebAppMode) IdeEmeraldSuccess else MaterialTheme.colorScheme.secondary
+                    )
                 }
 
                 IconButton(
@@ -489,6 +512,19 @@ private fun ModuleContentHost(
             onNavigate = { viewModel.navigateTo(it) },
             onSelectProject = { viewModel.selectProject(it) },
             onCreateQuickProject = { n, j, t -> viewModel.createNewProject(n, j, t) }
+        )
+
+        StudioModule.WEB_APP -> WebAppPortalScreen(
+            activeJdkVersion = activeJdkVersion,
+            onSyncFromWeb = { jdk, code ->
+                viewModel.switchProjectJdkVersion(jdk)
+                if (code.isNotBlank()) {
+                    viewModel.updateEditorCode(code)
+                }
+            },
+            onSwitchToNativeIde = {
+                viewModel.navigateTo(StudioModule.CODE_EDITOR)
+            }
         )
 
         StudioModule.CODE_EDITOR -> CodeEditorWorkspaceScreen(
@@ -607,6 +643,7 @@ private fun ModuleContentHost(
 private fun iconForModule(module: StudioModule): ImageVector {
     return when (module) {
         StudioModule.DASHBOARD -> Icons.Default.Dashboard
+        StudioModule.WEB_APP -> Icons.Default.Language
         StudioModule.CODE_EDITOR -> Icons.Default.Code
         StudioModule.JDK_MANAGER -> Icons.Default.Memory
         StudioModule.VERSION_EXPLORER -> Icons.Default.CompareArrows
