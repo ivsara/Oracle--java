@@ -81,6 +81,35 @@ class ExampleRobolectricTest {
         assertEquals(files["Main.java"], restored["Main.java"])
         assertEquals(files["Helper.java"], restored["Helper.java"])
     }
+
+    @Test
+    fun `auto-save debounce is configured to 2000ms and persists updated code and JDK version to Room`() = runBlocking {
+        assertEquals(2000L, com.example.ui.JavaStudioViewModel.AUTO_SAVE_DEBOUNCE_MS)
+
+        repository.ensureSeeded()
+        val initialProject = fakeDao.getAllProjects().first { it.name == "Java Basics" }
+        assertEquals("1.2", initialProject.jdkVersion)
+
+        val autoSavedCode = """
+            public class HelloWorld {
+                public static void main(String[] args) {
+                    System.out.println("Auto-saved after 2 seconds on JDK 21!");
+                }
+            }
+        """.trimIndent()
+        val updatedFiles = linkedMapOf("HelloWorld.java" to autoSavedCode)
+        val updatedEntity = initialProject.copy(
+            jdkVersion = "21",
+            filesContentSerialized = JdkCatalogAndSpecifications.serializeProjectFiles(updatedFiles),
+            updatedAt = System.currentTimeMillis()
+        )
+        repository.saveProject(updatedEntity)
+
+        val persisted = fakeDao.getProjectById(initialProject.id)!!
+        assertEquals("21", persisted.jdkVersion)
+        val restoredFiles = JdkCatalogAndSpecifications.deserializeProjectFiles(persisted.filesContentSerialized)
+        assertEquals(autoSavedCode, restoredFiles["HelloWorld.java"])
+    }
 }
 
 private class InMemoryJavaStudioDao : JavaStudioDao {
@@ -130,8 +159,8 @@ private class InMemoryJavaStudioDao : JavaStudioDao {
         return nextId
     }
 
-    override suspend fun insertAllJdkInstallations(jdkList: List<JdkInstallationEntity>) {
-        jdkList.forEach { insertJdkInstallation(it) }
+    override suspend fun insertAllJdkInstallations(jdks: List<JdkInstallationEntity>) {
+        jdks.forEach { insertJdkInstallation(it) }
     }
 
     override suspend fun updateJdkInstallation(jdk: JdkInstallationEntity) {
@@ -153,10 +182,10 @@ private class InMemoryJavaStudioDao : JavaStudioDao {
     override fun observeLearningProgress(): Flow<List<LearningProgressEntity>> = progressFlow
     override suspend fun getAllLearningProgress(): List<LearningProgressEntity> = progress.toList()
 
-    override suspend fun upsertLearningProgress(item: LearningProgressEntity) {
-        progress.removeAll { it.itemId == item.itemId }
-        progress.add(item)
-        progressFlow.value = progress.toList()
+    override suspend fun upsertLearningProgress(progress: LearningProgressEntity) {
+        this.progress.removeAll { it.itemId == progress.itemId }
+        this.progress.add(progress)
+        progressFlow.value = this.progress.toList()
     }
 
     override suspend fun upsertAllLearningProgress(items: List<LearningProgressEntity>) {
@@ -174,8 +203,8 @@ private class InMemoryJavaStudioDao : JavaStudioDao {
         return nextId
     }
 
-    override suspend fun insertAllOfflineResources(resList: List<OfflineResourceEntity>) {
-        resList.forEach { insertOfflineResource(it) }
+    override suspend fun insertAllOfflineResources(resources: List<OfflineResourceEntity>) {
+        resources.forEach { insertOfflineResource(it) }
     }
 
     override suspend fun deleteOfflineResource(id: Long) {

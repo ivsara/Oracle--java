@@ -175,5 +175,34 @@ class ExampleUnitTest {
         assertTrue(reportJdk12.unsupportedFeatureCount >= 1)
         assertTrue(reportJdk12.diagnostics.any { it.token == "..." })
     }
+
+    @Test
+    fun `formatJavaCode cleans up whitespace and auto-indents nested blocks`() {
+        val messyCode = """
+            public   class   MessyApp{
+            public static   void main(String[] args){
+
+
+            if(args.length > 0){
+                    System.out.println("Spaced   preserved   inside   string!");
+            }
+                }
+                    }
+        """.trimIndent()
+
+        val formatted = VersionSyntaxHighlighter.formatJavaCode(messyCode)
+        val expected = """
+            public class MessyApp {
+                public static void main(String[] args) {
+
+                    if(args.length > 0) {
+                        System.out.println("Spaced   preserved   inside   string!");
+                    }
+                }
+            }
+        """.trimIndent()
+        assertEquals(expected, formatted)
+    }
 }
+
 

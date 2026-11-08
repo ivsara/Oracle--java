@@ -287,7 +287,9 @@
             <strong>Real-Time Syntax Error &amp; Version Compatibility Analyzer</strong>
             <div style="font-size:11px; color:var(--muted);">Checks missing semicolons (;), mismatched braces/parentheses ({}, ()), unclosed strings, and JDK version syntax on every keystroke.</div>
           </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <span id="autoSaveBadge" class="badge badge-emerald">Auto-Save Ready (2s debounce)</span>
+            <button class="primary" onclick="formatCode()">Format Code</button>
             <button onclick="loadPreset('java2')">Java 2 (JDK 1.2)</button>
             <button onclick="loadPreset('modern')">Modern (JDK 25)</button>
             <button onclick="loadPreset('deprecated')">Deprecated APIs</button>
@@ -296,7 +298,7 @@
         </div>
         <div id="lexerBadges" style="margin-bottom:8px;"></div>
         <div class="editor-wrap">
-          <textarea id="codeInput" class="code-input" oninput="updateHighlighting()">import java.util.Vector;
+          <textarea id="codeInput" class="code-input" oninput="onCodeInput()">import java.util.Vector;
 
 public class HelloWorld {
     public static strictfp void main(String args[]) {
@@ -450,6 +452,12 @@ public class HelloWorld {
   </main>
 
 <script>
+  const STORAGE_KEY_CODE = 'ujs_autosave_code';
+  const STORAGE_KEY_JDK = 'ujs_autosave_jdk';
+  const STORAGE_KEY_TIME = 'ujs_autosave_timestamp';
+  const AUTO_SAVE_DELAY_MS = 2000;
+  let autoSaveTimer = null;
+
   const versionRankMap = {
     "1.0":100, "1.1":101, "1.2":102, "1.3":103, "1.4":104,
     "5":105, "6":106, "7":107, "8":108, "9":109, "10":110,
@@ -492,6 +500,141 @@ public class HelloWorld {
     btn.classList.add('active');
   }
 
+  function scheduleAutoSave() {
+    const badge = document.getElementById('autoSaveBadge');
+    if (badge) {
+      badge.className = 'badge badge-amber';
+      badge.innerText = 'Typing... (auto-saves in 2s)';
+    }
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+    }
+    autoSaveTimer = setTimeout(() => {
+      performAutoSave();
+    }, AUTO_SAVE_DELAY_MS);
+  }
+
+  function performAutoSave() {
+    const jdk = document.getElementById('jdkSelect').value;
+    const code = document.getElementById('codeInput').value;
+    const nowStr = new Date().toLocaleTimeString();
+    try {
+      window.localStorage.setItem(STORAGE_KEY_CODE, code);
+      window.localStorage.setItem(STORAGE_KEY_JDK, jdk);
+      window.localStorage.setItem(STORAGE_KEY_TIME, nowStr);
+    } catch (e) {
+      // Ignore storage quota exceptions in restricted iframes
+    }
+    if (window.AndroidStudioBridge && window.AndroidStudioBridge.onAutoSave) {
+      window.AndroidStudioBridge.onAutoSave(jdk, code);
+    }
+    const badge = document.getElementById('autoSaveBadge');
+    if (badge) {
+      badge.className = 'badge badge-emerald';
+      badge.innerText = `✓ Auto-saved (JDK ${jdk} • ${nowStr})`;
+    }
+  }
+
+  function restoreAutoSavedState() {
+    try {
+      const savedCode = window.localStorage.getItem(STORAGE_KEY_CODE);
+      const savedJdk = window.localStorage.getItem(STORAGE_KEY_JDK);
+      const savedTime = window.localStorage.getItem(STORAGE_KEY_TIME);
+      if (savedJdk && versionRankMap[savedJdk]) {
+        document.getElementById('jdkSelect').value = savedJdk;
+        document.getElementById('lexerLabel').innerText = 'JDK ' + savedJdk;
+      }
+      if (savedCode && savedCode.trim().length > 0) {
+        document.getElementById('codeInput').value = savedCode;
+        const badge = document.getElementById('autoSaveBadge');
+        if (badge) {
+          badge.className = 'badge badge-emerald';
+          badge.innerText = `Restored auto-save (${savedTime || 'localStorage'})`;
+        }
+      }
+    } catch (e) {
+      // Ignore if localStorage is blocked
+    }
+  }
+
+  function onCodeInput() {
+    updateHighlighting();
+    scheduleAutoSave();
+  }
+
+  function formatCode() {
+    const area = document.getElementById('codeInput');
+    const rawLines = area.value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    const formatted = [];
+    let indentLevel = 0;
+    let prevBlank = false;
+
+    for (const rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) {
+        if (!prevBlank && formatted.length > 0) {
+          formatted.push('');
+          prevBlank = true;
+        }
+        continue;
+      }
+      prevBlank = false;
+
+      // Normalize multiple internal spaces outside string literals
+      let cleanLine = '';
+      let inStr = false;
+      let lastSpace = false;
+      for (let i = 0; i < trimmed.length; i++) {
+        const ch = trimmed[i];
+        if (ch === '"' && (i === 0 || trimmed[i - 1] !== '\\')) {
+          inStr = !inStr;
+          lastSpace = false;
+          cleanLine += ch;
+        } else if (inStr) {
+          cleanLine += ch;
+        } else if (/\s/.test(ch)) {
+          if (!lastSpace) {
+            cleanLine += ' ';
+            lastSpace = true;
+          }
+        } else {
+          if (ch === '{' && cleanLine.length > 0 && cleanLine[cleanLine.length - 1] !== ' ' && cleanLine[cleanLine.length - 1] !== '{') {
+            cleanLine += ' ';
+          }
+          cleanLine += ch;
+          lastSpace = false;
+        }
+      }
+
+      // Count leading '}' to outdent current line
+      let leadingClosers = 0;
+      for (let i = 0; i < cleanLine.length; i++) {
+        if (cleanLine[i] === '}') leadingClosers++;
+        else if (!/\s/.test(cleanLine[i])) break;
+      }
+
+      const effectiveIndent = Math.max(0, indentLevel - leadingClosers);
+      formatted.push('    '.repeat(effectiveIndent) + cleanLine);
+
+      // Count net braces outside strings and '//' comments
+      const codePart = cleanLine.split('//')[0];
+      let openB = 0, closeB = 0, strFlag = false;
+      for (let i = 0; i < codePart.length; i++) {
+        const ch = codePart[i];
+        if (ch === '"' && (i === 0 || codePart[i - 1] !== '\\')) strFlag = !strFlag;
+        if (!strFlag) {
+          if (ch === '{') openB++;
+          else if (ch === '}') closeB++;
+        }
+      }
+      const remClosers = Math.max(0, closeB - leadingClosers);
+      indentLevel = Math.max(0, effectiveIndent + openB - remClosers);
+    }
+
+    area.value = formatted.join('\n').trim();
+    onCodeInput();
+  }
+
   function loadPreset(type) {
     const area = document.getElementById('codeInput');
     if (type === 'java2') {
@@ -513,6 +656,7 @@ public class HelloWorld {
     const jdk = document.getElementById('jdkSelect').value;
     document.getElementById('lexerLabel').innerText = 'JDK ' + jdk;
     updateHighlighting();
+    scheduleAutoSave();
     if (window.AndroidStudioBridge && window.AndroidStudioBridge.onSwitchJdk) {
       window.AndroidStudioBridge.onSwitchJdk(jdk);
     }
@@ -742,6 +886,7 @@ public class HelloWorld {
     `;
   }
 
+  restoreAutoSavedState();
   updateHighlighting();
   renderComparison();
 </script>

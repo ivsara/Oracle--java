@@ -101,6 +101,7 @@ fun UniversalJavaStudioApp(viewModel: JavaStudioViewModel) {
     val lastExecutionResult by viewModel.lastExecutionResult.collectAsStateWithLifecycle()
     val activeConsoleTab by viewModel.activeConsoleTab.collectAsStateWithLifecycle()
     val statusBannerMessage by viewModel.statusBannerMessage.collectAsStateWithLifecycle()
+    val autoSaveStatus by viewModel.autoSaveStatus.collectAsStateWithLifecycle()
 
     val compareLeftVersion by viewModel.compareLeftVersion.collectAsStateWithLifecycle()
     val compareRightVersion by viewModel.compareRightVersion.collectAsStateWithLifecycle()
@@ -239,6 +240,7 @@ fun UniversalJavaStudioApp(viewModel: JavaStudioViewModel) {
                                 activeConsoleTab = activeConsoleTab,
                                 findQuery = findQuery,
                                 replaceQuery = replaceQuery,
+                                autoSaveStatus = autoSaveStatus,
                                 compareLeftVersion = compareLeftVersion,
                                 compareRightVersion = compareRightVersion,
                                 selectedApiJdkVersion = selectedApiJdkVersion,
@@ -311,6 +313,7 @@ fun UniversalJavaStudioApp(viewModel: JavaStudioViewModel) {
                                 activeConsoleTab = activeConsoleTab,
                                 findQuery = findQuery,
                                 replaceQuery = replaceQuery,
+                                autoSaveStatus = autoSaveStatus,
                                 compareLeftVersion = compareLeftVersion,
                                 compareRightVersion = compareRightVersion,
                                 selectedApiJdkVersion = selectedApiJdkVersion,
@@ -489,6 +492,7 @@ private fun ModuleContentHost(
     activeConsoleTab: Int,
     findQuery: String,
     replaceQuery: String,
+    autoSaveStatus: String,
     compareLeftVersion: String,
     compareRightVersion: String,
     selectedApiJdkVersion: String,
@@ -517,10 +521,7 @@ private fun ModuleContentHost(
         StudioModule.WEB_APP -> WebAppPortalScreen(
             activeJdkVersion = activeJdkVersion,
             onSyncFromWeb = { jdk, code ->
-                viewModel.switchProjectJdkVersion(jdk)
-                if (code.isNotBlank()) {
-                    viewModel.updateEditorCode(code)
-                }
+                viewModel.onWebAutoSave(jdk, code)
             },
             onSwitchToNativeIde = {
                 viewModel.navigateTo(StudioModule.CODE_EDITOR)
@@ -542,10 +543,12 @@ private fun ModuleContentHost(
             activeConsoleTab = activeConsoleTab,
             findQuery = findQuery,
             replaceQuery = replaceQuery,
+            autoSaveStatus = autoSaveStatus,
             onCodeChange = { viewModel.updateEditorCode(it) },
             onSelectTab = { viewModel.selectEditorTab(it) },
             onAddClassTab = { viewModel.addFileTabToProject(it) },
             onSwitchJdkVersion = { viewModel.switchProjectJdkVersion(it) },
+            onFormatCode = { viewModel.formatCurrentEditorCode() },
             onSaveProject = { viewModel.saveCurrentProject() },
             onCompile = { viewModel.compileActiveProject() },
             onRun = { viewModel.runActiveProject() },

@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.core.ApiClassDoc
@@ -21,7 +22,12 @@ import com.example.data.local.JdkInstallationEntity
 import com.example.data.local.LearningProgressEntity
 import com.example.data.local.OfflineResourceEntity
 import com.example.data.local.ProjectEntity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -140,6 +146,15 @@ class JavaStudioViewModel @JvmOverloads constructor(
     private val _statusBannerMessage = MutableStateFlow("Ready — Offline Toolchain & Room Database Active")
     val statusBannerMessage: StateFlow<String> = _statusBannerMessage.asStateFlow()
 
+    // Auto-Save State (2-second debounce after user stops typing)
+    private val _autoSaveStatus = MutableStateFlow("Auto-Save Active (2s debounce)")
+    val autoSaveStatus: StateFlow<String> = _autoSaveStatus.asStateFlow()
+
+    private val _lastAutoSaveTimeMs = MutableStateFlow(0L)
+    val lastAutoSaveTimeMs: StateFlow<Long> = _lastAutoSaveTimeMs.asStateFlow()
+
+    private var autoSaveJob: Job? = null
+
     // Version Explorer Comparison State
     private val _compareLeftVersion = MutableStateFlow("8")
     val compareLeftVersion: StateFlow<String> = _compareLeftVersion.asStateFlow()
@@ -178,21 +193,66 @@ class JavaStudioViewModel @JvmOverloads constructor(
     val quizSubmitted: StateFlow<Boolean> = _quizSubmitted.asStateFlow()
 
     init {
+        restoreFromLocalStorageSnapshotIfAvailable()
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 runCatching { repository.ensureSeeded() }
             }
             val allProjs = projects.value
             if (allProjs.isNotEmpty() && _activeProjectId.value == 0L) {
-                selectProject(allProjs.first())
+                selectProject(allProjs.first(), fromInit = true)
             }
         }
         viewModelScope.launch {
             projects.collect { list ->
                 if (list.isNotEmpty() && _activeProjectId.value == 0L) {
-                    selectProject(list.first())
+                    selectProject(list.first(), fromInit = true)
                 }
             }
+        }
+    }
+
+    private fun restoreFromLocalStorageSnapshotIfAvailable() {
+        runCatching {
+            val prefs = getApplication<Application>().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val savedCode = prefs.getString(KEY_AUTOSAVE_CODE, null)
+            val savedJdk = prefs.getString(KEY_AUTOSAVE_JDK, null)
+            val savedFile = prefs.getString(KEY_AUTOSAVE_FILE, null)
+            val savedProjectName = prefs.getString(KEY_AUTOSAVE_PROJECT_NAME, null)
+            val savedProjectId = prefs.getLong(KEY_AUTOSAVE_PROJECT_ID, 0L)
+            if (!savedCode.isNullOrBlank() && !savedJdk.isNullOrBlank()) {
+                val targetFile = savedFile ?: "HelloWorld.java"
+                _activeJdkVersion.value = savedJdk
+                if (savedProjectId > 0L) _activeProjectId.value = savedProjectId
+                if (!savedProjectName.isNullOrBlank()) _activeProjectName.value = savedProjectName
+                _activeFileName.value = targetFile
+                _editorCode.value = savedCode
+                val updatedMap = LinkedHashMap(_openFilesMap.value)
+                updatedMap[targetFile] = savedCode
+                _openFilesMap.value = updatedMap
+                _autoSaveStatus.value = "Restored auto-saved session (JDK $savedJdk)"
+            }
+        }
+    }
+
+    private fun persistToLocalStorageSnapshot(
+        projectId: Long,
+        projectName: String,
+        jdkVersion: String,
+        fileName: String,
+        code: String,
+        timestampMs: Long
+    ) {
+        runCatching {
+            val prefs = getApplication<Application>().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit()
+                .putLong(KEY_AUTOSAVE_PROJECT_ID, projectId)
+                .putString(KEY_AUTOSAVE_PROJECT_NAME, projectName)
+                .putString(KEY_AUTOSAVE_JDK, jdkVersion)
+                .putString(KEY_AUTOSAVE_FILE, fileName)
+                .putString(KEY_AUTOSAVE_CODE, code)
+                .putLong(KEY_AUTOSAVE_TIMESTAMP, timestampMs)
+                .apply()
         }
     }
 
@@ -213,7 +273,8 @@ class JavaStudioViewModel @JvmOverloads constructor(
     }
 
     // Project & Editor Operations
-    fun selectProject(project: ProjectEntity) {
+    fun selectProject(project: ProjectEntity, fromInit: Boolean = false) {
+        autoSaveJob?.cancel()
         _activeProjectId.value = project.id
         _activeProjectName.value = project.name
         _activeJdkVersion.value = project.jdkVersion
@@ -228,13 +289,40 @@ class JavaStudioViewModel @JvmOverloads constructor(
         _activeFileName.value = activeFile
         _editorCode.value = files[activeFile] ?: ""
         _statusBannerMessage.value = "Loaded project '${project.name}' configured with JDK ${project.jdkVersion}"
+        if (!fromInit) {
+            _autoSaveStatus.value = "Synced '${project.name}' (JDK ${project.jdkVersion})"
+        }
     }
 
-    fun updateEditorCode(newCode: String) {
+    /**
+     * Updates the current code editor content and schedules a 2-second debounced auto-save
+     * that persists both the editor content and selected JDK version to the Room database and localStorage.
+     */
+    fun updateEditorCode(newCode: String, debounceMs: Long = AUTO_SAVE_DEBOUNCE_MS) {
         _editorCode.value = newCode
         val updatedMap = LinkedHashMap(_openFilesMap.value)
         updatedMap[_activeFileName.value] = newCode
         _openFilesMap.value = updatedMap
+        scheduleDebouncedAutoSave(debounceMs)
+    }
+
+    /**
+     * Formats the current editor code using the auto-indentation and whitespace cleanup algorithm
+     * and schedules the 2-second debounced auto-save.
+     */
+    fun formatCurrentEditorCode() {
+        val formatted = VersionSyntaxHighlighter.formatJavaCode(_editorCode.value)
+        updateEditorCode(formatted)
+        _statusBannerMessage.value = "Formatted '${_activeFileName.value}' (cleaned whitespace & auto-indented)"
+    }
+
+    private fun scheduleDebouncedAutoSave(debounceMs: Long = AUTO_SAVE_DEBOUNCE_MS) {
+        autoSaveJob?.cancel()
+        _autoSaveStatus.value = "Typing... (auto-saves in 2s)"
+        autoSaveJob = viewModelScope.launch {
+            delay(debounceMs)
+            performProjectSave(isAutoSave = true)
+        }
     }
 
     fun selectEditorTab(fileName: String) {
@@ -243,6 +331,7 @@ class JavaStudioViewModel @JvmOverloads constructor(
         _openFilesMap.value = currentMap
         _activeFileName.value = fileName
         _editorCode.value = currentMap[fileName] ?: ""
+        scheduleDebouncedAutoSave()
     }
 
     fun addFileTabToProject(rawFileName: String) {
@@ -267,36 +356,74 @@ class JavaStudioViewModel @JvmOverloads constructor(
     fun switchProjectJdkVersion(newJdkVersion: String) {
         _activeJdkVersion.value = newJdkVersion
         _statusBannerMessage.value = "Switched project '${_activeProjectName.value}' to JDK $newJdkVersion (Syntax rules updated)"
-        saveCurrentProject()
+        scheduleDebouncedAutoSave()
+    }
+
+    fun onWebAutoSave(jdkVersion: String, code: String) {
+        _activeJdkVersion.value = jdkVersion
+        if (code.isNotBlank()) {
+            _editorCode.value = code
+            val updatedMap = LinkedHashMap(_openFilesMap.value)
+            updatedMap[_activeFileName.value] = code
+            _openFilesMap.value = updatedMap
+        }
+        viewModelScope.launch {
+            performProjectSave(isAutoSave = true)
+        }
     }
 
     fun saveCurrentProject() {
+        autoSaveJob?.cancel()
         viewModelScope.launch {
-            val currentMap = LinkedHashMap(_openFilesMap.value)
-            currentMap[_activeFileName.value] = _editorCode.value
-            _openFilesMap.value = currentMap
+            performProjectSave(isAutoSave = false)
+        }
+    }
 
-            val existing = projects.value.find { it.id == _activeProjectId.value }
-            val mainClass = _activeFileName.value.removeSuffix(".java")
-            val entity = (existing ?: ProjectEntity(
-                name = _activeProjectName.value,
-                description = "Java Project targeting JDK ${_activeJdkVersion.value}",
-                jdkVersion = _activeJdkVersion.value,
-                packageName = "default",
-                mainClassName = mainClass,
-                activeFileName = _activeFileName.value,
-                filesContentSerialized = ""
-            )).copy(
-                jdkVersion = _activeJdkVersion.value,
-                mainClassName = mainClass,
-                activeFileName = _activeFileName.value,
-                compilerFlags = _compilerFlags.value,
-                runtimeArgs = _runtimeArgs.value,
-                filesContentSerialized = JdkCatalogAndSpecifications.serializeProjectFiles(currentMap),
-                updatedAt = System.currentTimeMillis()
-            )
-            val savedId = repository.saveProject(entity)
-            _activeProjectId.value = savedId
+    private suspend fun performProjectSave(isAutoSave: Boolean) {
+        val currentCode = _editorCode.value
+        val currentJdk = _activeJdkVersion.value
+        val currentFile = _activeFileName.value
+        val currentMap = LinkedHashMap(_openFilesMap.value)
+        currentMap[currentFile] = currentCode
+        _openFilesMap.value = currentMap
+
+        val now = System.currentTimeMillis()
+        val existing = projects.value.find { it.id == _activeProjectId.value }
+        val mainClass = currentFile.removeSuffix(".java")
+        val entity = (existing ?: ProjectEntity(
+            name = _activeProjectName.value,
+            description = "Java Project targeting JDK $currentJdk",
+            jdkVersion = currentJdk,
+            packageName = "default",
+            mainClassName = mainClass,
+            activeFileName = currentFile,
+            filesContentSerialized = ""
+        )).copy(
+            jdkVersion = currentJdk,
+            mainClassName = mainClass,
+            activeFileName = currentFile,
+            compilerFlags = _compilerFlags.value,
+            runtimeArgs = _runtimeArgs.value,
+            filesContentSerialized = JdkCatalogAndSpecifications.serializeProjectFiles(currentMap),
+            updatedAt = now
+        )
+        val savedId = repository.saveProject(entity)
+        _activeProjectId.value = savedId
+        _lastAutoSaveTimeMs.value = now
+        persistToLocalStorageSnapshot(
+            projectId = savedId,
+            projectName = entity.name,
+            jdkVersion = currentJdk,
+            fileName = currentFile,
+            code = currentCode,
+            timestampMs = now
+        )
+        val formattedTime = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date(now))
+        if (isAutoSave) {
+            _autoSaveStatus.value = "Auto-saved to Room DB & localStorage at $formattedTime (JDK $currentJdk)"
+            _statusBannerMessage.value = "Auto-saved '${entity.name}' ($currentFile • JDK $currentJdk) at $formattedTime"
+        } else {
+            _autoSaveStatus.value = "Saved to Room DB at $formattedTime (JDK $currentJdk)"
             _statusBannerMessage.value = "Saved '${entity.name}' (JDK ${entity.jdkVersion})"
         }
     }
@@ -773,4 +900,16 @@ class JavaStudioViewModel @JvmOverloads constructor(
             compatibilityLevel = "Supported"
         )
     }
+
+    companion object {
+        const val AUTO_SAVE_DEBOUNCE_MS = 2000L
+        const val PREFS_NAME = "universal_java_studio_local_storage"
+        const val KEY_AUTOSAVE_PROJECT_ID = "ujs_autosave_project_id"
+        const val KEY_AUTOSAVE_PROJECT_NAME = "ujs_autosave_project_name"
+        const val KEY_AUTOSAVE_JDK = "ujs_autosave_jdk"
+        const val KEY_AUTOSAVE_FILE = "ujs_autosave_file"
+        const val KEY_AUTOSAVE_CODE = "ujs_autosave_code"
+        const val KEY_AUTOSAVE_TIMESTAMP = "ujs_autosave_timestamp"
+    }
 }
+

@@ -943,4 +943,150 @@ object VersionSyntaxHighlighter {
             }
         }
     }
+
+    /**
+     * Formats Java source code using a brace-aware auto-indentation and whitespace cleanup algorithm:
+     * - Normalizes line endings and strips trailing spaces/tabs
+     * - Collapses consecutive blank lines into a single blank line
+     * - Normalizes spacing before opening braces (e.g., `){` -> `) {`) outside strings and comments
+     * - Computes 4-space block indentation from `{` and `}` depth while ignoring strings, char literals, and comments
+     */
+    fun formatJavaCode(sourceCode: String, indentSize: Int = 4): String {
+        val rawLines = sourceCode.replace("\r\n", "\n").replace('\r', '\n').lines()
+        val formattedLines = mutableListOf<String>()
+        var indentLevel = 0
+        var previousLineBlank = false
+        var inBlockComment = false
+
+        for (rawLine in rawLines) {
+            val trimmed = rawLine.trim()
+            if (trimmed.isEmpty()) {
+                if (!previousLineBlank && formattedLines.isNotEmpty()) {
+                    formattedLines.add("")
+                    previousLineBlank = true
+                }
+                continue
+            }
+            previousLineBlank = false
+
+            // Handle multi-line block comment continuation
+            if (inBlockComment) {
+                val indentPrefix = " ".repeat((indentLevel * indentSize).coerceAtLeast(0))
+                val prefix = if (trimmed.startsWith("*")) "$indentPrefix $trimmed" else "$indentPrefix$trimmed"
+                formattedLines.add(prefix)
+                if (trimmed.contains("*/")) {
+                    inBlockComment = false
+                }
+                continue
+            }
+            if (trimmed.startsWith("/*") && !trimmed.contains("*/")) {
+                val indentPrefix = " ".repeat((indentLevel * indentSize).coerceAtLeast(0))
+                formattedLines.add("$indentPrefix$trimmed")
+                inBlockComment = true
+                continue
+            }
+
+            // Clean up inline whitespace outside string literals and comments
+            val normalizedLine = normalizeLineWhitespace(trimmed)
+
+            // Count leading closing braces '}' at the start of the line to outdent before printing
+            var leadingClosers = 0
+            for (ch in normalizedLine) {
+                if (ch == '}') {
+                    leadingClosers++
+                } else if (!ch.isWhitespace()) {
+                    break
+                }
+            }
+
+            val effectiveIndent = (indentLevel - leadingClosers).coerceAtLeast(0)
+            val indentSpaces = " ".repeat(effectiveIndent * indentSize)
+            formattedLines.add("$indentSpaces$normalizedLine")
+
+            // Count total '{' and '}' on this line outside strings, char literals, and comments
+            var openBraces = 0
+            var closeBraces = 0
+            var inString = false
+            var inChar = false
+            var i = 0
+            while (i < normalizedLine.length) {
+                val c = normalizedLine[i]
+                val next = if (i + 1 < normalizedLine.length) normalizedLine[i + 1] else '\u0000'
+                if (!inString && !inChar && c == '/' && next == '/') {
+                    break // rest of line is a single-line comment
+                }
+                if (!inString && !inChar && c == '/' && next == '*') {
+                    val endIdx = normalizedLine.indexOf("*/", i + 2)
+                    if (endIdx >= 0) {
+                        i = endIdx + 2
+                        continue
+                    } else {
+                        inBlockComment = true
+                        break
+                    }
+                }
+                if (!inChar && c == '"' && (i == 0 || normalizedLine[i - 1] != '\\')) {
+                    inString = !inString
+                } else if (!inString && c == '\'' && (i == 0 || normalizedLine[i - 1] != '\\')) {
+                    inChar = !inChar
+                } else if (!inString && !inChar) {
+                    if (c == '{') openBraces++
+                    else if (c == '}') closeBraces++
+                }
+                i++
+            }
+
+            val remainingClosers = (closeBraces - leadingClosers).coerceAtLeast(0)
+            indentLevel = (effectiveIndent + openBraces - remainingClosers).coerceAtLeast(0)
+        }
+
+        return formattedLines.joinToString("\n").trim()
+    }
+
+    private fun normalizeLineWhitespace(trimmed: String): String {
+        if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {
+            return trimmed
+        }
+        val sb = StringBuilder()
+        var inString = false
+        var inChar = false
+        var lastWasSpace = false
+        var i = 0
+        while (i < trimmed.length) {
+            val c = trimmed[i]
+            val next = if (i + 1 < trimmed.length) trimmed[i + 1] else '\u0000'
+            if (!inString && !inChar && c == '/' && next == '/') {
+                if (sb.isNotEmpty() && sb.last() != ' ') sb.append(' ')
+                sb.append(trimmed.substring(i))
+                break
+            }
+            if (!inChar && c == '"' && (i == 0 || trimmed[i - 1] != '\\')) {
+                inString = !inString
+                lastWasSpace = false
+                sb.append(c)
+            } else if (!inString && c == '\'' && (i == 0 || trimmed[i - 1] != '\\')) {
+                inChar = !inChar
+                lastWasSpace = false
+                sb.append(c)
+            } else if (inString || inChar) {
+                sb.append(c)
+            } else {
+                if (c.isWhitespace()) {
+                    if (!lastWasSpace) {
+                        sb.append(' ')
+                        lastWasSpace = true
+                    }
+                } else {
+                    if (c == '{' && sb.isNotEmpty() && sb.last() != ' ' && sb.last() != '{') {
+                        sb.append(' ')
+                    }
+                    sb.append(c)
+                    lastWasSpace = false
+                }
+            }
+            i++
+        }
+        return sb.toString().trim()
+    }
 }
+

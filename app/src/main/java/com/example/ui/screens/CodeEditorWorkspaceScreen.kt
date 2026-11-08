@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatAlignLeft
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CleaningServices
@@ -88,10 +89,12 @@ fun CodeEditorWorkspaceScreen(
     activeConsoleTab: Int,
     findQuery: String,
     replaceQuery: String,
+    autoSaveStatus: String = "Auto-Save Active (2s debounce)",
     onCodeChange: (String) -> Unit,
     onSelectTab: (String) -> Unit,
     onAddClassTab: (String) -> Unit,
     onSwitchJdkVersion: (String) -> Unit,
+    onFormatCode: () -> Unit = {},
     onSaveProject: () -> Unit,
     onCompile: () -> Unit,
     onRun: () -> Unit,
@@ -190,6 +193,14 @@ fun CodeEditorWorkspaceScreen(
                             Text("Run")
                         }
                         OutlinedButton(
+                            onClick = onFormatCode,
+                            modifier = Modifier.testTag("editor_format_code_button")
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.FormatAlignLeft, contentDescription = "Format Code", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Format Code")
+                        }
+                        OutlinedButton(
                             onClick = onSaveProject,
                             modifier = Modifier.testTag("editor_save_button")
                         ) {
@@ -214,7 +225,7 @@ fun CodeEditorWorkspaceScreen(
                     }
                 }
 
-                // Version-Specific Syntax Lexer Status Bar
+                // Version-Specific Syntax Lexer & 2s Auto-Save Status Bar
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                     shape = RoundedCornerShape(8.dp),
@@ -232,6 +243,24 @@ fun CodeEditorWorkspaceScreen(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
+                        Surface(
+                            color = (if (autoSaveStatus.startsWith("Typing")) MaterialTheme.colorScheme.primary else IdeEmeraldSuccess).copy(alpha = 0.16f),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier
+                                .border(
+                                    1.dp,
+                                    (if (autoSaveStatus.startsWith("Typing")) MaterialTheme.colorScheme.primary else IdeEmeraldSuccess).copy(alpha = 0.45f),
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .testTag("auto_save_status_badge")
+                        ) {
+                            Text(
+                                text = autoSaveStatus,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (autoSaveStatus.startsWith("Typing")) MaterialTheme.colorScheme.primary else IdeEmeraldSuccess,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
                         SyntaxCounterBadge(
                             label = "Syntax Errors: ${syntaxReport.syntaxErrorCount}",
                             color = if (syntaxReport.syntaxErrorCount > 0) SyntaxUnsupportedError else IdeEmeraldSuccess

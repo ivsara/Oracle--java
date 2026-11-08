@@ -50,6 +50,11 @@ private class UniversalJavaWebBridge(
     }
 
     @JavascriptInterface
+    fun onAutoSave(jdkVersion: String, code: String) {
+        onSyncJdkAndCode(jdkVersion, code)
+    }
+
+    @JavascriptInterface
     fun compileFromWeb(jdkVersion: String, code: String): String {
         onSyncJdkAndCode(jdkVersion, code)
         val spec = JdkCatalogAndSpecifications.getSpec(jdkVersion)
