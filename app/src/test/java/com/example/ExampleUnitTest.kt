@@ -137,4 +137,43 @@ class ExampleUnitTest {
         val ctor = com.example.ui.JavaStudioViewModel::class.java.getConstructor(android.app.Application::class.java)
         org.junit.Assert.assertNotNull(ctor)
     }
+
+    @Test
+    fun `real-time syntax error checker flags missing semicolons, mismatched braces, and version syntax errors`() {
+        val brokenSyntaxCode = """
+            public class SyntaxErrorDemo {
+                public static void main(String[] args) {
+                    int missingSemi = 42
+                    System.out.println("Missing semicolon here too")
+                    if (missingSemi > 10) {
+                        System.out.println("Unclosed brace!");
+                }
+        """.trimIndent()
+
+        val report = VersionSyntaxHighlighter.analyzeAndHighlight(brokenSyntaxCode, "17")
+        assertTrue("Expected at least 3 syntax errors (2 missing semicolons + 1 unclosed brace)", report.syntaxErrorCount >= 3)
+        assertTrue(
+            report.diagnostics.any {
+                it.category == DiagnosticCategory.SYNTAX_ERROR && it.message.contains("';' expected")
+            }
+        )
+        assertTrue(
+            report.diagnostics.any {
+                it.category == DiagnosticCategory.SYNTAX_ERROR && it.message.contains("Unclosed '{'")
+            }
+        )
+
+        // Verify JDK-version-specific syntax checks (varargs '...' in JDK 1.2)
+        val varargsInJava2 = """
+            public class VarargsLegacy {
+                public static void logAll(String... items) {
+                    System.out.println(items.length);
+                }
+            }
+        """.trimIndent()
+        val reportJdk12 = VersionSyntaxHighlighter.analyzeAndHighlight(varargsInJava2, "1.2")
+        assertTrue(reportJdk12.unsupportedFeatureCount >= 1)
+        assertTrue(reportJdk12.diagnostics.any { it.token == "..." })
+    }
 }
+

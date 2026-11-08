@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Universal Java Studio — Offline Web Application</title>
+<title>Universal Java Studio — All-Version Offline Web IDE (JDK 1.0 – 25)</title>
 <style>
   :root {
     --bg: #0b1120;
@@ -99,10 +99,12 @@
     padding: 6px 10px;
     border-radius: 6px;
     font-size: 12px;
+    cursor: pointer;
   }
-  button.primary { background: var(--amber); color: #0b1120; font-weight: 700; border: none; cursor: pointer; }
-  button.success { background: var(--emerald); color: #052e16; font-weight: 700; border: none; cursor: pointer; }
-  button.secondary { background: var(--cyan); color: #082f49; font-weight: 700; border: none; cursor: pointer; }
+  button.primary { background: var(--amber); color: #0b1120; font-weight: 700; border: none; }
+  button.success { background: var(--emerald); color: #052e16; font-weight: 700; border: none; }
+  button.secondary { background: var(--cyan); color: #082f49; font-weight: 700; border: none; }
+  button.danger { background: rgba(239, 68, 68, 0.2); color: var(--ruby); border: 1px solid var(--ruby); font-weight: 600; }
   main {
     flex: 1;
     overflow-y: auto;
@@ -127,10 +129,12 @@
     font-size: 11px;
     font-weight: 600;
     margin-right: 6px;
+    margin-bottom: 4px;
   }
   .badge-amber { background: rgba(245, 158, 11, 0.18); color: var(--amber); }
   .badge-cyan { background: rgba(56, 189, 248, 0.18); color: var(--cyan); }
-  .badge-ruby { background: rgba(239, 68, 68, 0.18); color: var(--ruby); }
+  .badge-emerald { background: rgba(16, 185, 129, 0.18); color: var(--emerald); }
+  .badge-ruby { background: rgba(239, 68, 68, 0.22); color: var(--ruby); border: 1px solid rgba(239, 68, 68, 0.45); }
   .badge-orange { background: rgba(249, 115, 22, 0.18); color: var(--orange); }
   .editor-wrap {
     display: flex;
@@ -139,7 +143,7 @@
   }
   textarea.code-input {
     width: 100%;
-    min-height: 170px;
+    min-height: 165px;
     background: #070b14;
     color: #e2e8f0;
     font-family: "JetBrains Mono", monospace;
@@ -156,16 +160,51 @@
     padding: 10px;
     font-family: "JetBrains Mono", monospace;
     font-size: 12.5px;
-    line-height: 1.55;
+    line-height: 1.6;
     white-space: pre-wrap;
     overflow-x: auto;
+  }
+  .line-row {
+    display: flex;
+    gap: 10px;
+  }
+  .line-num {
+    width: 34px;
+    text-align: right;
+    color: #64748b;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .line-num.err {
+    color: var(--ruby);
+    font-weight: 800;
+  }
+  .line-code.err-bg {
+    background: rgba(239, 68, 68, 0.12);
+    border-bottom: 1px dashed var(--ruby);
+    width: 100%;
   }
   .kw-classic { color: var(--violet); font-weight: bold; }
   .kw-modern { color: var(--cyan); font-weight: bold; background: rgba(56, 189, 248, 0.14); padding: 0 2px; border-radius: 3px; }
   .kw-deprecated { color: var(--orange); text-decoration: line-through; background: rgba(249, 115, 22, 0.15); padding: 0 2px; }
-  .kw-unsupported { color: var(--ruby); font-weight: bold; text-decoration: underline wavy var(--ruby); background: rgba(239, 68, 68, 0.18); padding: 0 2px; }
-  .kw-str { color: #34d399; }
+  .kw-unsupported { color: var(--ruby); font-weight: bold; text-decoration: underline wavy var(--ruby); background: rgba(239, 68, 68, 0.22); padding: 0 2px; }
+  .kw-syntax-err { color: #ffffff; background: var(--ruby); font-weight: bold; padding: 0 4px; border-radius: 3px; }
   .kw-comment { color: #64748b; font-style: italic; }
+  .diag-list {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .diag-item {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .diag-err { background: rgba(239, 68, 68, 0.15); border-left: 3px solid var(--ruby); color: #fca5a5; }
+  .diag-warn { background: rgba(249, 115, 22, 0.15); border-left: 3px solid var(--orange); color: #fdba74; }
+  .diag-mod { background: rgba(56, 189, 248, 0.12); border-left: 3px solid var(--cyan); color: #bae6fd; }
   .console-box {
     background: #050811;
     color: #34d399;
@@ -199,8 +238,8 @@
     <div class="brand">
       <div class="logo">{J}</div>
       <div>
-        <div style="font-weight:700; font-size:15px;">Universal Java Studio Web App</div>
-        <div style="font-size:11px; color:var(--muted);" id="activeStatusText">Offline Web IDE • JDK 1.0 – JDK 25 • Room SQLite Synced</div>
+        <div style="font-weight:700; font-size:15px;">Universal Java Studio Web Application</div>
+        <div style="font-size:11px; color:var(--muted);" id="activeStatusText">Real-Time Syntax Error Layer • JDK 1.0 – JDK 25 • GitHub Pages Ready</div>
       </div>
     </div>
     <div class="toolbar-controls">
@@ -231,11 +270,12 @@
   </header>
 
   <div class="nav-tabs">
-    <button class="nav-btn active" onclick="showTab('editor', this)">1. Code Editor &amp; Syntax Lexer</button>
+    <button class="nav-btn active" onclick="showTab('editor', this)">1. Code Editor &amp; Real-Time Syntax Checker</button>
     <button class="nav-btn" onclick="showTab('explorer', this)">2. Java Version Explorer</button>
     <button class="nav-btn" onclick="showTab('jdks', this)">3. JDK Manager (1.0–25)</button>
     <button class="nav-btn" onclick="showTab('tutorials', this)">4. Offline Tutorials &amp; API Docs</button>
     <button class="nav-btn" onclick="showTab('database', this)">5. Room SQLite Schema</button>
+    <button class="nav-btn" onclick="showTab('github', this)">6. Deploy to GitHub Pages</button>
   </div>
 
   <main>
@@ -244,13 +284,14 @@
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
           <div>
-            <strong>QScintilla Web Equivalent — Version-Specific Syntax Highlighter</strong>
-            <div style="font-size:11px; color:var(--muted);">Dynamically highlights classic keywords, modern JDK features, deprecated APIs, and unsupported syntax for the selected JDK.</div>
+            <strong>Real-Time Syntax Error &amp; Version Compatibility Analyzer</strong>
+            <div style="font-size:11px; color:var(--muted);">Checks missing semicolons (;), mismatched braces/parentheses ({}, ()), unclosed strings, and JDK version syntax on every keystroke.</div>
           </div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button onclick="loadPreset('java2')">Load Java 2 (JDK 1.2)</button>
-            <button onclick="loadPreset('modern')">Load Modern (JDK 25)</button>
-            <button onclick="loadPreset('deprecated')">Load Deprecated APIs</button>
+            <button onclick="loadPreset('java2')">Java 2 (JDK 1.2)</button>
+            <button onclick="loadPreset('modern')">Modern (JDK 25)</button>
+            <button onclick="loadPreset('deprecated')">Deprecated APIs</button>
+            <button class="danger" onclick="loadPreset('syntax_error')">Test Syntax Errors (; &amp; {)</button>
           </div>
         </div>
         <div id="lexerBadges" style="margin-bottom:8px;"></div>
@@ -265,8 +306,9 @@ public class HelloWorld {
         System.out.println("Vector count: " + v.size());
     }
 }</textarea>
-          <div style="font-size:11px; color:var(--amber); font-weight:600;">Live Version-Highlighted AST Preview (<span id="lexerLabel">JDK 1.2</span>):</div>
+          <div style="font-size:11px; color:var(--amber); font-weight:600;">Real-Time Highlighted Code &amp; Gutter Inspector (<span id="lexerLabel">JDK 1.2</span>):</div>
           <div id="highlightPreview" class="highlight-preview"></div>
+          <div id="realtimeDiagnostics" class="diag-list"></div>
         </div>
       </div>
 
@@ -379,6 +421,32 @@ public class HelloWorld {
         </table>
       </div>
     </div>
+
+    <!-- 6. GITHUB PAGES WEB DEPLOYMENT -->
+    <div id="tab-github" class="section">
+      <div class="card">
+        <strong>GitHub Pages Web Application Deployment Ready</strong>
+        <p style="font-size:12px; color:var(--muted); margin:6px 0 12px;">
+          This project includes a pre-configured static web bundle in <code>/docs/index.html</code> and an automated GitHub Actions deployment workflow at <code>/.github/workflows/deploy-web.yml</code>.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Deployment Artifact</th><th>Repository Path</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Standalone Web Application</td><td><code>/docs/index.html</code></td><td><span class="badge badge-emerald">Ready for GitHub Pages</span></td></tr>
+            <tr><td>GitHub Actions CI/CD Workflow</td><td><code>/.github/workflows/deploy-web.yml</code></td><td><span class="badge badge-emerald">Configured (push to main/master)</span></td></tr>
+            <tr><td>Android Offline Asset Mirror</td><td><code>/app/src/main/assets/web/index.html</code></td><td><span class="badge badge-cyan">Synced</span></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:12px; font-size:12px; line-height:1.6;">
+          <strong>How to publish live on GitHub Pages:</strong><br/>
+          1. Click <strong>Push to GitHub / Export</strong> in the AI Studio settings menu.<br/>
+          2. In your GitHub repository, open <strong>Settings &rarr; Pages</strong> and select <strong>GitHub Actions</strong> (or <strong>Deploy from a branch &rarr; main /docs</strong>).<br/>
+          3. Your Universal Java Studio Web Application will be live at <code>https://&lt;username&gt;.github.io/&lt;repo&gt;/</code>!
+        </div>
+      </div>
+    </div>
   </main>
 
 <script>
@@ -414,7 +482,7 @@ public class HelloWorld {
     "11":  { year: 2018, bytecode: "55.0", lang: "var in lambda parameters, single-file source launch", api: "java.net.http.HttpClient, String.isBlank/repeat, Files.readString", dep: "Removed Java EE & CORBA modules, Applet deprecated", jvm: "ZGC & Epsilon GC introduced, Nest-Based Access Control" },
     "17":  { year: 2021, bytecode: "61.0", lang: "Sealed Classes (sealed/permits/non-sealed), Records (16), Pattern instanceof (16), Switch Expr (14), Text Blocks (15)", api: "RandomGenerator, HexFormat, Stream.toList()", dep: "SecurityManager & Applet deprecated for removal; strictfp redundant", jvm: "Strongly encapsulated JDK internals, macOS AArch64" },
     "21":  { year: 2023, bytecode: "65.0", lang: "Pattern Matching for switch + 'when' guards, Record Patterns", api: "Virtual Threads (Thread.ofVirtual), SequencedCollection, Math.clamp", dep: "32-bit x86 Windows deprecated, Thread.suspend throws UOE", jvm: "Generational ZGC, lightweight Project Loom Virtual Threads" },
-    "25":  { year: 2025, bytecode: "69.0", lang: "import module java.base, Compact Source Files, Flexible Constructor Bodies, Markdown Javadoc ///", api: "ScopedValue, Stream Gatherers (24), Class-File API (24), FFM API (22)", dep: "SecurityManager permanently disabled (24), all 32-bit x86 ports removed", jvm: "Non-pinning synchronized Virtual Threads, Compact Object Headers" }
+    "25":  { year: 2025, bytecode: "69.0", lang: "import module java.base, Compact Source Files, Flexible Constructor Bodies, Markdown Javadoc ///", api: "ScopedValue, Stream Gatherers (24), Class-File API (22), FFM API (22)", dep: "SecurityManager permanently disabled (24), all 32-bit x86 ports removed", jvm: "Non-pinning synchronized Virtual Threads, Compact Object Headers" }
   };
 
   function showTab(name, btn) {
@@ -435,6 +503,8 @@ public class HelloWorld {
     } else if (type === 'deprecated') {
       document.getElementById('jdkSelect').value = '17';
       area.value = `import java.applet.Applet;\n\npublic class DeprecatedAudit {\n    public static strictfp void main(String[] args) {\n        SecurityManager sm = null;\n        System.out.println("Auditing Applet, SecurityManager & strictfp in JDK 17");\n    }\n}`;
+    } else if (type === 'syntax_error') {
+      area.value = `public class SyntaxErrorDemo {\n    public static void main(String[] args) {\n        int missingSemicolon = 42\n        System.out.println("Missing semicolon on this line too")\n        if (missingSemicolon > 10) {\n            System.out.println("Unclosed brace below!");\n    }`;
     }
     onJdkChanged();
   }
@@ -452,45 +522,174 @@ public class HelloWorld {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
+  function requiresSemicolon(cleanLine) {
+    if (!cleanLine) return false;
+    const validEndings = [';', '{', '}', ':', ',', '+', '-', '*', '/', '=', '(', '|', '&', '?'];
+    if (validEndings.some(ch => cleanLine.endsWith(ch))) return false;
+    if (cleanLine.endsWith('->') || cleanLine.endsWith('"""') || cleanLine.startsWith('@')) return false;
+    const headers = [
+      'public class ', 'class ', 'private class ', 'protected class ', 'final class ', 'sealed class ',
+      'public interface ', 'interface ', 'public enum ', 'enum ', 'public record ', 'record ',
+      'public static ', 'public void ', 'private void ', 'void main',
+      'if ', 'if(', 'else', 'for ', 'for(', 'while ', 'while(', 'do', 'switch ', 'switch(', 'try', 'catch', 'finally'
+    ];
+    if (headers.some(h => cleanLine.startsWith(h)) && !cleanLine.includes('=')) return false;
+    return /^(package|import|return|throw|break|continue|assert)\b/.test(cleanLine) ||
+           /^(System\.out\.|System\.err\.|[A-Za-z_][A-Za-z0-9_.]*\s*\()/.test(cleanLine) ||
+           /^(?:final\s+)?(?:int|long|double|float|boolean|char|byte|short|String|var|Vector|ArrayList|List|[A-Z][A-Za-z0-9_<>]*)\s+[A-Za-z_][A-Za-z0-9_]*\s*=/.test(cleanLine) ||
+           /^[A-Za-z_][A-Za-z0-9_]*\s*(?:=|\+=|-=|\+\+|--)/.test(cleanLine);
+  }
+
   function updateHighlighting() {
     const jdk = document.getElementById('jdkSelect').value;
     const rank = versionRankMap[jdk] || 125;
     const raw = document.getElementById('codeInput').value;
-    let modernCount = 0, depCount = 0, unsupCount = 0;
+    const rawLines = raw.split('\n');
 
-    const highlighted = escapeHtml(raw).split('\n').map(line => {
-      if (line.trim().startsWith('//')) {
-        if (line.trim().startsWith('///')) {
-          if (rank < 123) { unsupCount++; return `<span class="kw-unsupported">${line}</span>`; }
-          modernCount++; return `<span class="kw-modern">${line}</span>`;
+    let syntaxErrCount = 0, modernCount = 0, depCount = 0, unsupCount = 0;
+    const diagnostics = [];
+    const errorLines = new Set();
+
+    // 1. Delimiter Stack Check ({}, (), [])
+    const stack = [];
+    const pairs = { '}': '{', ')': '(', ']': '[' };
+    rawLines.forEach((l, idx) => {
+      const lineNum = idx + 1;
+      const codePart = l.split('//')[0];
+      let inStr = false;
+      for (let i = 0; i < codePart.length; i++) {
+        const ch = codePart[i];
+        if (ch === '"' && (i === 0 || codePart[i - 1] !== '\\')) inStr = !inStr;
+        if (!inStr) {
+          if (ch === '{' || ch === '(' || ch === '[') {
+            stack.push({ ch, line: lineNum });
+          } else if (ch === '}' || ch === ')' || ch === ']') {
+            if (stack.length === 0) {
+              syntaxErrCount++;
+              errorLines.add(lineNum);
+              diagnostics.push({ type: 'err', text: `Line ${lineNum}: Syntax Error — Unmatched closing '${ch}'` });
+            } else {
+              const top = stack.pop();
+              if (top.ch !== pairs[ch]) {
+                syntaxErrCount++;
+                errorLines.add(lineNum);
+                errorLines.add(top.line);
+                diagnostics.push({ type: 'err', text: `Line ${lineNum}: Syntax Error — Mismatched '${ch}' (opened '${top.ch}' on line ${top.line})` });
+              }
+            }
+          }
         }
-        return `<span class="kw-comment">${line}</span>`;
       }
-      return line.replace(/\b([A-Za-z_][A-Za-z0-9_]*)\b/g, (m) => {
-        if (versionedKeywords[m] !== undefined) {
-          const minR = versionedKeywords[m];
-          if (rank < minR) { unsupCount++; return `<span class="kw-unsupported" title="Unsupported in JDK ${jdk}">${m}</span>`; }
-          if (m === 'strictfp' && rank >= 117) { depCount++; return `<span class="kw-deprecated" title="Obsolete in JDK 17+">${m}</span>`; }
-          if (minR >= 110) { modernCount++; return `<span class="kw-modern">${m}</span>`; }
-          return `<span class="kw-classic">${m}</span>`;
-        }
-        if (deprecatedTokens[m] !== undefined && rank >= deprecatedTokens[m]) {
-          depCount++;
-          return `<span class="kw-deprecated" title="Deprecated in JDK ${jdk}">${m}</span>`;
-        }
-        if (classicKeywords.has(m)) {
-          return `<span class="kw-classic">${m}</span>`;
-        }
-        return m;
-      });
-    }).join('\n');
+      if (inStr) {
+        syntaxErrCount++;
+        errorLines.add(lineNum);
+        diagnostics.push({ type: 'err', text: `Line ${lineNum}: Syntax Error — Unclosed string literal` });
+      }
+    });
+    while (stack.length > 0) {
+      const unclosed = stack.pop();
+      syntaxErrCount++;
+      errorLines.add(unclosed.line);
+      diagnostics.push({ type: 'err', text: `Line ${unclosed.line}: Syntax Error — Unclosed '${unclosed.ch}' (missing closing brace/paren)` });
+    }
 
-    document.getElementById('highlightPreview').innerHTML = highlighted;
+    // 2. Line-by-line Semicolon & Version Syntax Check
+    const htmlRows = rawLines.map((rawLine, idx) => {
+      const lineNum = idx + 1;
+      const cleanCode = rawLine.split('//')[0].trim();
+      let missingSemi = false;
+
+      if (!rawLine.trim().startsWith('//') && requiresSemicolon(cleanCode)) {
+        missingSemi = true;
+        syntaxErrCount++;
+        errorLines.add(lineNum);
+        diagnostics.push({ type: 'err', text: `Line ${lineNum}: Syntax Error — ';' expected at end of statement` });
+      }
+
+      if (cleanCode.startsWith('import module ') && rank < 125) {
+        unsupCount++;
+        errorLines.add(lineNum);
+        diagnostics.push({ type: 'err', text: `Line ${lineNum}: 'import module' requires JDK 25+ (selected: JDK ${jdk})` });
+      }
+
+      if (/<[A-Z][A-Za-z0-9_,\s]*>/.test(cleanCode) && rank < 105) {
+        unsupCount++;
+        errorLines.add(lineNum);
+        diagnostics.push({ type: 'err', text: `Line ${lineNum}: Generics (<T>) require JDK 5+ (not supported in JDK ${jdk})` });
+      }
+
+      let lineHtml = escapeHtml(rawLine);
+      if (rawLine.trim().startsWith('//')) {
+        if (rawLine.trim().startsWith('///')) {
+          if (rank < 123) {
+            unsupCount++;
+            errorLines.add(lineNum);
+            diagnostics.push({ type: 'err', text: `Line ${lineNum}: Markdown Javadoc '///' requires JDK 23+` });
+            lineHtml = `<span class="kw-unsupported">${lineHtml}</span>`;
+          } else {
+            modernCount++;
+            lineHtml = `<span class="kw-modern">${lineHtml}</span>`;
+          }
+        } else {
+          lineHtml = `<span class="kw-comment">${lineHtml}</span>`;
+        }
+      } else {
+        lineHtml = lineHtml.replace(/\b([A-Za-z_][A-Za-z0-9_]*)\b/g, (m) => {
+          if (versionedKeywords[m] !== undefined) {
+            const minR = versionedKeywords[m];
+            if (rank < minR) {
+              unsupCount++;
+              errorLines.add(lineNum);
+              diagnostics.push({ type: 'err', text: `Line ${lineNum}: Keyword '${m}' requires JDK ${Object.keys(versionRankMap).find(k => versionRankMap[k] === minR)} (unsupported in JDK ${jdk})` });
+              return `<span class="kw-unsupported">${m}</span>`;
+            }
+            if (m === 'strictfp' && rank >= 117) {
+              depCount++;
+              diagnostics.push({ type: 'warn', text: `Line ${lineNum}: 'strictfp' is redundant/obsolete in JDK 17+ (JEP 306)` });
+              return `<span class="kw-deprecated">${m}</span>`;
+            }
+            if (minR >= 110) {
+              modernCount++;
+              return `<span class="kw-modern">${m}</span>`;
+            }
+            return `<span class="kw-classic">${m}</span>`;
+          }
+          if (deprecatedTokens[m] !== undefined && rank >= deprecatedTokens[m]) {
+            depCount++;
+            diagnostics.push({ type: 'warn', text: `Line ${lineNum}: '${m}' is @Deprecated in JDK ${jdk}` });
+            return `<span class="kw-deprecated">${m}</span>`;
+          }
+          if (classicKeywords.has(m)) {
+            return `<span class="kw-classic">${m}</span>`;
+          }
+          return m;
+        });
+      }
+
+      if (missingSemi) {
+        lineHtml += ` <span class="kw-syntax-err" title="Missing semicolon">; expected</span>`;
+      }
+
+      const isErrLine = errorLines.has(lineNum);
+      return `<div class="line-row"><span class="line-num ${isErrLine ? 'err' : ''}">${isErrLine ? '!' + lineNum : lineNum}</span><span class="line-code ${isErrLine ? 'err-bg' : ''}">${lineHtml || ' '}</span></div>`;
+    }).join('');
+
+    document.getElementById('highlightPreview').innerHTML = htmlRows;
     document.getElementById('lexerBadges').innerHTML =
+      `<span class="badge ${syntaxErrCount > 0 ? 'badge-ruby' : 'badge-emerald'}">Syntax Errors: ${syntaxErrCount}</span>` +
       `<span class="badge badge-amber">Active Profile: JDK ${jdk}</span>` +
       `<span class="badge badge-cyan">Modern Features: ${modernCount}</span>` +
-      `<span class="badge badge-orange">Deprecated/Obsolete: ${depCount}</span>` +
+      `<span class="badge badge-orange">Deprecated: ${depCount}</span>` +
       `<span class="badge badge-ruby">Unsupported in JDK ${jdk}: ${unsupCount}</span>`;
+
+    const diagContainer = document.getElementById('realtimeDiagnostics');
+    if (diagnostics.length === 0) {
+      diagContainer.innerHTML = `<div class="diag-item diag-mod">✓ Real-Time Syntax Check Passed: 0 syntax errors or version conflicts for JDK ${jdk}.</div>`;
+    } else {
+      diagContainer.innerHTML = diagnostics.slice(0, 8).map(d =>
+        `<div class="diag-item ${d.type === 'err' ? 'diag-err' : 'diag-warn'}">${escapeHtml(d.text)}</div>`
+      ).join('');
+    }
   }
 
   function compileCode() {
@@ -500,7 +699,14 @@ public class HelloWorld {
       const out = window.AndroidStudioBridge.compileFromWeb(jdk, code);
       document.getElementById('consoleOutput').innerText = out;
     } else {
-      document.getElementById('consoleOutput').innerText = `$ javac --release ${jdk} HelloWorld.java\nCompilation succeeded for JDK ${jdk}.`;
+      updateHighlighting();
+      const errBadges = document.querySelectorAll('.diag-err');
+      if (errBadges.length > 0) {
+        document.getElementById('consoleOutput').innerText = `$ javac --release ${jdk}\nCompilation failed with ${errBadges.length} error(s):\n` +
+          Array.from(errBadges).map(e => e.innerText).join('\n');
+      } else {
+        document.getElementById('consoleOutput').innerText = `$ javac --release ${jdk} HelloWorld.java\nCompilation succeeded (0 errors) for JDK ${jdk}.`;
+      }
     }
   }
 
@@ -511,7 +717,7 @@ public class HelloWorld {
       const out = window.AndroidStudioBridge.runFromWeb(jdk, code);
       document.getElementById('consoleOutput').innerText = out;
     } else {
-      document.getElementById('consoleOutput').innerText = `$ java HelloWorld\nHello World from Universal Java Studio Web App (JDK ${jdk})!`;
+      compileCode();
     }
   }
 

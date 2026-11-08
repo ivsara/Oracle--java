@@ -233,6 +233,10 @@ fun CodeEditorWorkspaceScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         SyntaxCounterBadge(
+                            label = "Syntax Errors: ${syntaxReport.syntaxErrorCount}",
+                            color = if (syntaxReport.syntaxErrorCount > 0) SyntaxUnsupportedError else IdeEmeraldSuccess
+                        )
+                        SyntaxCounterBadge(
                             label = "Classic: ${syntaxReport.classicKeywordCount}",
                             color = MaterialTheme.colorScheme.tertiary
                         )
@@ -424,6 +428,24 @@ fun CodeEditorWorkspaceScreen(
                         label = { Text("Deprecated APIs (Applet / SecurityManager)") },
                         modifier = Modifier.testTag("preset_deprecated_btn")
                     )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            onCodeChange(
+                                """
+                                public class SyntaxErrorDemo {
+                                    public static void main(String[] args) {
+                                        int missingSemicolon = 42
+                                        System.out.println("Missing semicolon on line above and below")
+                                        if (missingSemicolon > 10) {
+                                            System.out.println("Unclosed brace and mismatched parenthesis");
+                                    }
+                                """.trimIndent()
+                            )
+                        },
+                        label = { Text("Test Syntax Errors (Missing ';' & '{')") },
+                        modifier = Modifier.testTag("preset_syntax_error_btn")
+                    )
                 }
 
                 // Line Number Gutter + Highlighted Editable Code Surface
@@ -445,13 +467,13 @@ fun CodeEditorWorkspaceScreen(
                         codeLines.indices.forEach { idx ->
                             val lineNum = idx + 1
                             val hasError = syntaxReport.diagnostics.any {
-                                it.line == lineNum && it.category == DiagnosticCategory.UNSUPPORTED_IN_SELECTED_JDK
+                                it.line == lineNum && (it.category == DiagnosticCategory.SYNTAX_ERROR || it.category == DiagnosticCategory.UNSUPPORTED_IN_SELECTED_JDK)
                             }
                             val hasWarn = syntaxReport.diagnostics.any {
                                 it.line == lineNum && it.category == DiagnosticCategory.DEPRECATED_OR_REMOVED
                             }
                             Text(
-                                text = "$lineNum",
+                                text = if (hasError) "!$lineNum" else "$lineNum",
                                 style = TextStyle(
                                     fontFamily = JetBrainsMonoFontFamily,
                                     fontSize = 13.sp,
@@ -537,8 +559,9 @@ fun CodeEditorWorkspaceScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    syntaxReport.diagnostics.take(6).forEach { diag ->
+                    syntaxReport.diagnostics.take(8).forEach { diag ->
                         val badgeColor = when (diag.category) {
+                            DiagnosticCategory.SYNTAX_ERROR -> SyntaxUnsupportedError
                             DiagnosticCategory.UNSUPPORTED_IN_SELECTED_JDK -> SyntaxUnsupportedError
                             DiagnosticCategory.DEPRECATED_OR_REMOVED -> SyntaxDeprecated
                             DiagnosticCategory.NEWLY_INTRODUCED_MODERN_FEATURE -> SyntaxKeywordModern
