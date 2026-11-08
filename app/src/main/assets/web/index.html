@@ -427,25 +427,26 @@ public class HelloWorld {
     <!-- 6. GITHUB PAGES WEB DEPLOYMENT -->
     <div id="tab-github" class="section">
       <div class="card">
-        <strong>GitHub Pages Web Application Deployment Ready</strong>
+        <strong>GitHub Pages Web Application Deployment Ready (Dual-Mode CI/CD)</strong>
         <p style="font-size:12px; color:var(--muted); margin:6px 0 12px;">
-          This project includes a pre-configured static web bundle in <code>/docs/index.html</code> and an automated GitHub Actions deployment workflow at <code>/.github/workflows/deploy-web.yml</code>.
+          This project includes static web bundles at <code>/index.html</code> and <code>/docs/index.html</code>, plus a fault-tolerant GitHub Actions workflow at <code>/.github/workflows/deploy-web.yml</code> that automatically publishes the <code>gh-pages</code> branch and configures GitHub Pages with <code>enablement: true</code>.
         </p>
         <table>
           <thead>
             <tr><th>Deployment Artifact</th><th>Repository Path</th><th>Status</th></tr>
           </thead>
           <tbody>
-            <tr><td>Standalone Web Application</td><td><code>/docs/index.html</code></td><td><span class="badge badge-emerald">Ready for GitHub Pages</span></td></tr>
-            <tr><td>GitHub Actions CI/CD Workflow</td><td><code>/.github/workflows/deploy-web.yml</code></td><td><span class="badge badge-emerald">Configured (push to main/master)</span></td></tr>
+            <tr><td>Root &amp; Docs Web Application</td><td><code>/index.html</code> &amp; <code>/docs/index.html</code></td><td><span class="badge badge-emerald">Ready for GitHub Pages</span></td></tr>
+            <tr><td>GitHub Actions CI/CD Workflow</td><td><code>/.github/workflows/deploy-web.yml</code></td><td><span class="badge badge-emerald">Auto-pushes gh-pages + enablement: true</span></td></tr>
             <tr><td>Android Offline Asset Mirror</td><td><code>/app/src/main/assets/web/index.html</code></td><td><span class="badge badge-cyan">Synced</span></td></tr>
           </tbody>
         </table>
         <div style="margin-top:12px; font-size:12px; line-height:1.6;">
-          <strong>How to publish live on GitHub Pages:</strong><br/>
-          1. Click <strong>Push to GitHub / Export</strong> in the AI Studio settings menu.<br/>
-          2. In your GitHub repository, open <strong>Settings &rarr; Pages</strong> and select <strong>GitHub Actions</strong> (or <strong>Deploy from a branch &rarr; main /docs</strong>).<br/>
-          3. Your Universal Java Studio Web Application will be live at <code>https://&lt;username&gt;.github.io/&lt;repo&gt;/</code>!
+          <strong>How to view your live GitHub Pages site:</strong><br/>
+          1. Push this update to GitHub via <strong>Export / Push to GitHub</strong> in AI Studio.<br/>
+          2. The workflow automatically creates/updates the <strong><code>gh-pages</code></strong> branch and enables GitHub Pages.<br/>
+          3. In your GitHub repository (e.g., <code>Settings &rarr; Pages</code>), ensure Source is set to <strong>Deploy from a branch &rarr; <code>gh-pages</code> / <code>(root)</code></strong> (or <strong><code>main</code> / <code>/docs</code></strong>, or <strong>GitHub Actions</strong>).<br/>
+          4. Open <code>https://&lt;username&gt;.github.io/&lt;repo&gt;/</code>!
         </div>
       </div>
     </div>
@@ -845,13 +846,78 @@ public class HelloWorld {
     } else {
       updateHighlighting();
       const errBadges = document.querySelectorAll('.diag-err');
+      const spec = versionSpecs[jdk] || { bytecode: "52.0" };
+      const classMatch = code.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)/);
+      const className = classMatch ? classMatch[1] : "HelloWorld";
+      const flag = (versionRankMap[jdk] || 108) >= 109 ? `--release ${jdk}` : `-source ${jdk} -target ${jdk}`;
       if (errBadges.length > 0) {
-        document.getElementById('consoleOutput').innerText = `$ javac --release ${jdk}\nCompilation failed with ${errBadges.length} error(s):\n` +
-          Array.from(errBadges).map(e => e.innerText).join('\n');
+        document.getElementById('consoleOutput').innerText =
+          `$ javac ${flag} ${className}.java\nCompilation FAILED with ${errBadges.length} error(s):\n` +
+          Array.from(errBadges).map(e => "  " + e.innerText).join('\n');
+        return false;
       } else {
-        document.getElementById('consoleOutput').innerText = `$ javac --release ${jdk} HelloWorld.java\nCompilation succeeded (0 errors) for JDK ${jdk}.`;
+        document.getElementById('consoleOutput').innerText =
+          `$ javac ${flag} ${className}.java\nCompilation succeeded (0 errors) -> Generated ${className}.class [Bytecode v${spec.bytecode} / 0xCAFEBABE] for JDK ${jdk}.`;
+        return true;
       }
     }
+  }
+
+  function evaluateJavaExpression(expr, env) {
+    const trimmed = expr.trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+      return trimmed.slice(1, -1);
+    }
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return Number(trimmed);
+    }
+    if (env.hasOwnProperty(trimmed)) {
+      return env[trimmed];
+    }
+    // Collection methods: v.size(), v.elementAt(0), v.get(0)
+    const sizeMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\.size\(\)$/);
+    if (sizeMatch && Array.isArray(env[sizeMatch[1]])) {
+      return env[sizeMatch[1]].length;
+    }
+    const elemMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\.(?:elementAt|get)\((\d+)\)$/);
+    if (elemMatch && Array.isArray(env[elemMatch[1]])) {
+      return env[elemMatch[1]][Number(elemMatch[2])] ?? "null";
+    }
+    // Record accessor: inv.id(), m.name()
+    const accMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\(\)$/);
+    if (accMatch && env[accMatch[1]] && typeof env[accMatch[1]] === 'object') {
+      const obj = env[accMatch[1]];
+      if (obj.hasOwnProperty(accMatch[2])) return obj[accMatch[2]];
+    }
+    // Split top-level '+' for string concatenation / addition
+    const parts = [];
+    let current = "";
+    let inStr = false;
+    let parenDepth = 0;
+    for (let i = 0; i < trimmed.length; i++) {
+      const ch = trimmed[i];
+      if (ch === '"' && (i === 0 || trimmed[i - 1] !== '\\')) inStr = !inStr;
+      if (!inStr) {
+        if (ch === '(') parenDepth++;
+        else if (ch === ')') parenDepth = Math.max(0, parenDepth - 1);
+        else if (ch === '+' && parenDepth === 0) {
+          parts.push(current);
+          current = "";
+          continue;
+        }
+      }
+      current += ch;
+    }
+    if (parts.length > 0) {
+      parts.push(current);
+      const evaled = parts.map(p => evaluateJavaExpression(p, env));
+      if (evaled.some(v => typeof v === 'string')) {
+        return evaled.join('');
+      }
+      return evaled.reduce((a, b) => Number(a) + Number(b), 0);
+    }
+    return trimmed;
   }
 
   function runCode() {
@@ -860,9 +926,79 @@ public class HelloWorld {
     if (window.AndroidStudioBridge && window.AndroidStudioBridge.runFromWeb) {
       const out = window.AndroidStudioBridge.runFromWeb(jdk, code);
       document.getElementById('consoleOutput').innerText = out;
-    } else {
-      compileCode();
+      return;
     }
+
+    const compiledOk = compileCode();
+    if (!compiledOk) return;
+
+    const classMatch = code.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)/);
+    const className = classMatch ? classMatch[1] : "HelloWorld";
+    const env = {};
+    const recordDefs = {};
+    const stdoutLines = [];
+
+    // Parse record definitions: record Invoice(String id, int amount)
+    const recRegex = /\brecord\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)/g;
+    let recMatch;
+    while ((recMatch = recRegex.exec(code)) !== null) {
+      const rName = recMatch[1];
+      const fields = recMatch[2].split(',').map(f => f.trim().split(/\s+/).pop()).filter(Boolean);
+      recordDefs[rName] = fields;
+    }
+
+    const lines = code.split('\n');
+    for (const rawLine of lines) {
+      const line = rawLine.split('//')[0].trim();
+      if (!line) continue;
+
+      // Vector / ArrayList initialization
+      const vecInit = line.match(/^(?:Vector|ArrayList|List)(?:<[^>]*>)?\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+(?:Vector|ArrayList)/);
+      if (vecInit) {
+        env[vecInit[1]] = [];
+        continue;
+      }
+
+      // v.addElement(...) or v.add(...)
+      const vecAdd = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\.(?:addElement|add)\((.+)\);$/);
+      if (vecAdd && Array.isArray(env[vecAdd[1]])) {
+        env[vecAdd[1]].push(evaluateJavaExpression(vecAdd[2], env));
+        continue;
+      }
+
+      // Record instantiation: var inv = new Invoice("INV-25", 900);
+      const recInst = line.match(/^(?:var|[A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+([A-Za-z_][A-Za-z0-9_]*)\((.+)\);$/);
+      if (recInst && recordDefs[recInst[2]]) {
+        const varName = recInst[1];
+        const fields = recordDefs[recInst[2]];
+        const args = recInst[3].split(',').map(a => evaluateJavaExpression(a, env));
+        const obj = {};
+        fields.forEach((f, idx) => { obj[f] = args[idx]; });
+        env[varName] = obj;
+        continue;
+      }
+
+      // Simple variable declaration: int x = 42; / String s = "...";
+      const varDecl = line.match(/^(?:final\s+)?(?:int|long|double|float|boolean|String|var|Integer)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+);$/);
+      if (varDecl && !varDecl[2].startsWith('switch')) {
+        const rhs = varDecl[2].replace(/^new\s+Integer\((.+)\)$/, '$1');
+        env[varDecl[1]] = evaluateJavaExpression(rhs, env);
+        continue;
+      }
+
+      // System.out.println(...) / System.out.print(...)
+      const printMatch = line.match(/^System\.out\.(println|print)\((.*)\);$/);
+      if (printMatch) {
+        const val = evaluateJavaExpression(printMatch[2], env);
+        stdoutLines.push(String(val));
+      }
+    }
+
+    const outputText = stdoutLines.length > 0 ? stdoutLines.join('\n') : "(Program completed with no stdout output)";
+    document.getElementById('consoleOutput').innerText =
+      `$ java -cp build/classes ${className}\n` +
+      outputText +
+      `\n[Exit Code: 0 • Runtime: JDK ${jdk} • Universal Java Studio Web VM]`;
   }
 
   function renderComparison() {

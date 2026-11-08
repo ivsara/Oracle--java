@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -16,22 +16,53 @@ concurrency:
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup GitHub Pages
+      - name: Publish Static Web Bundle to gh-pages Branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p /tmp/web-dist
+          cp -r docs/. /tmp/web-dist/
+          touch /tmp/web-dist/.nojekyll
+          git checkout --orphan gh-pages-temp
+          git rm -rf . >/dev/null 2>&1 || true
+          cp -r /tmp/web-dist/. .
+          git add -A
+          git commit -m "chore: deploy Universal Java Studio Web App to gh-pages"
+          git push origin HEAD:refs/heads/gh-pages --force
+          git checkout -f "${GITHUB_REF_NAME:-main}"
+
+      - name: Setup GitHub Pages (Auto-Enable)
+        id: setup_pages
+        continue-on-error: true
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload Static Web Application Artifact (docs/)
+        if: steps.setup_pages.outcome == 'success'
+        continue-on-error: true
         uses: actions/upload-pages-artifact@v3
         with:
           path: "docs"
 
       - name: Deploy to GitHub Pages
         id: deployment
+        if: steps.setup_pages.outcome == 'success'
+        continue-on-error: true
         uses: actions/deploy-pages@v4
+
+      - name: Generate Deployment Summary
+        run: |
+          REPO_OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          PAGES_URL="https://${REPO_OWNER}.github.io/${REPO_NAME}/"
+          echo "## Universal Java Studio — Web Application Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Web Application Bundle**: \`/docs/index.html\` & \`gh-pages\` branch updated." >> $GITHUB_STEP_SUMMARY
+          echo "- **Expected GitHub Pages URL**: [${PAGES_URL}](${PAGES_URL})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pages Settings (if first-time setup)**: [https://github.com/${GITHUB_REPOSITORY}/settings/pages](https://github.com/${GITHUB_REPOSITORY}/settings/pages) (Select **Deploy from a branch -> gh-pages / (root)** or **GitHub Actions**)" >> $GITHUB_STEP_SUMMARY

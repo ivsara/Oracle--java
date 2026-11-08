@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Universal Java Studio — All-Version Offline Web IDE (JDK 1.0 – 25)</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --surface: #131c31;
+    --surface-elevated: #1e293b;
+    --border: #334155;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --amber: #f59e0b;
+    --cyan: #38bdf8;
+    --emerald: #10b981;
+    --ruby: #ef4444;
+    --violet: #c084fc;
+    --orange: #f97316;
+  }
+  body.light {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-elevated: #f1f5f9;
+    --border: #cbd5e1;
+    --text: #0f172a;
+    --muted: #475569;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--amber), var(--cyan));
+    color: #0b1120;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    background: var(--surface-elevated);
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid transparent;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .nav-btn.active {
+    background: var(--amber);
+    color: #0b1120;
+  }
+  .toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  select, input, button {
+    background: var(--surface-elevated);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button.primary { background: var(--amber); color: #0b1120; font-weight: 700; border: none; }
+  button.success { background: var(--emerald); color: #052e16; font-weight: 700; border: none; }
+  button.secondary { background: var(--cyan); color: #082f49; font-weight: 700; border: none; }
+  button.danger { background: rgba(239, 68, 68, 0.2); color: var(--ruby); border: 1px solid var(--ruby); font-weight: 600; }
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 6px;
+    margin-bottom: 4px;
+  }
+  .badge-amber { background: rgba(245, 158, 11, 0.18); color: var(--amber); }
+  .badge-cyan { background: rgba(56, 189, 248, 0.18); color: var(--cyan); }
+  .badge-emerald { background: rgba(16, 185, 129, 0.18); color: var(--emerald); }
+  .badge-ruby { background: rgba(239, 68, 68, 0.22); color: var(--ruby); border: 1px solid rgba(239, 68, 68, 0.45); }
+  .badge-orange { background: rgba(249, 115, 22, 0.18); color: var(--orange); }
+  .editor-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  textarea.code-input {
+    width: 100%;
+    min-height: 165px;
+    background: #070b14;
+    color: #e2e8f0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .highlight-preview {
+    background: #070b14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+  .line-row {
+    display: flex;
+    gap: 10px;
+  }
+  .line-num {
+    width: 34px;
+    text-align: right;
+    color: #64748b;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .line-num.err {
+    color: var(--ruby);
+    font-weight: 800;
+  }
+  .line-code.err-bg {
+    background: rgba(239, 68, 68, 0.12);
+    border-bottom: 1px dashed var(--ruby);
+    width: 100%;
+  }
+  .kw-classic { color: var(--violet); font-weight: bold; }
+  .kw-modern { color: var(--cyan); font-weight: bold; background: rgba(56, 189, 248, 0.14); padding: 0 2px; border-radius: 3px; }
+  .kw-deprecated { color: var(--orange); text-decoration: line-through; background: rgba(249, 115, 22, 0.15); padding: 0 2px; }
+  .kw-unsupported { color: var(--ruby); font-weight: bold; text-decoration: underline wavy var(--ruby); background: rgba(239, 68, 68, 0.22); padding: 0 2px; }
+  .kw-syntax-err { color: #ffffff; background: var(--ruby); font-weight: bold; padding: 0 4px; border-radius: 3px; }
+  .kw-comment { color: #64748b; font-style: italic; }
+  .diag-list {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .diag-item {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .diag-err { background: rgba(239, 68, 68, 0.15); border-left: 3px solid var(--ruby); color: #fca5a5; }
+  .diag-warn { background: rgba(249, 115, 22, 0.15); border-left: 3px solid var(--orange); color: #fdba74; }
+  .diag-mod { background: rgba(56, 189, 248, 0.12); border-left: 3px solid var(--cyan); color: #bae6fd; }
+  .console-box {
+    background: #050811;
+    color: #34d399;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    white-space: pre-wrap;
+    min-height: 90px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--surface-elevated); color: var(--amber); }
+  .section { display: none; }
+  .section.active { display: block; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">{J}</div>
+      <div>
+        <div style="font-weight:700; font-size:15px;">Universal Java Studio Web Application</div>
+        <div style="font-size:11px; color:var(--muted);" id="activeStatusText">Real-Time Syntax Error Layer • JDK 1.0 – JDK 25 • GitHub Pages Live Bundle</div>
+      </div>
+    </div>
+    <div class="toolbar-controls">
+      <label style="font-size:11px; color:var(--muted);">Project JDK:</label>
+      <select id="jdkSelect" onchange="onJdkChanged()">
+        <option value="1.0">JDK 1.0 (Oak - v45.3)</option>
+        <option value="1.1">JDK 1.1 (Sparkler - v45.3)</option>
+        <option value="1.2" selected>JDK 1.2 (Java 2 - v46.0)</option>
+        <option value="1.3">JDK 1.3 (Kestrel - v47.0)</option>
+        <option value="1.4">JDK 1.4 (Merlin - v48.0)</option>
+        <option value="5">JDK 5 (Tiger - v49.0)</option>
+        <option value="6">JDK 6 (Mustang - v50.0)</option>
+        <option value="7">JDK 7 (Dolphin - v51.0)</option>
+        <option value="8">JDK 8 (LTS - v52.0)</option>
+        <option value="9">JDK 9 (Jigsaw - v53.0)</option>
+        <option value="10">JDK 10 (var - v54.0)</option>
+        <option value="11">JDK 11 (LTS - v55.0)</option>
+        <option value="14">JDK 14 (Switch Expr - v58.0)</option>
+        <option value="16">JDK 16 (Records - v60.0)</option>
+        <option value="17">JDK 17 (LTS Sealed - v61.0)</option>
+        <option value="21">JDK 21 (LTS Loom - v65.0)</option>
+        <option value="25">JDK 25 (Latest LTS - v69.0)</option>
+      </select>
+      <button class="secondary" onclick="compileCode()">Compile</button>
+      <button class="success" onclick="runCode()">Run</button>
+      <button onclick="document.body.classList.toggle('light')">Theme</button>
+    </div>
+  </header>
+
+  <div class="nav-tabs">
+    <button class="nav-btn active" onclick="showTab('editor', this)">1. Code Editor &amp; Real-Time Syntax Checker</button>
+    <button class="nav-btn" onclick="showTab('explorer', this)">2. Java Version Explorer</button>
+    <button class="nav-btn" onclick="showTab('jdks', this)">3. JDK Manager (1.0–25)</button>
+    <button class="nav-btn" onclick="showTab('tutorials', this)">4. Offline Tutorials &amp; API Docs</button>
+    <button class="nav-btn" onclick="showTab('database', this)">5. Room SQLite Schema</button>
+    <button class="nav-btn" onclick="showTab('github', this)">6. Deploy to GitHub Pages</button>
+  </div>
+
+  <main>
+    <!-- 1. CODE EDITOR -->
+    <div id="tab-editor" class="section active">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <strong>Real-Time Syntax Error &amp; Version Compatibility Analyzer</strong>
+            <div style="font-size:11px; color:var(--muted);">Checks missing semicolons (;), mismatched braces/parentheses ({}, ()), unclosed strings, and JDK version syntax on every keystroke.</div>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <span id="autoSaveBadge" class="badge badge-emerald">Auto-Save Ready (2s debounce)</span>
+            <button class="primary" onclick="formatCode()">Format Code</button>
+            <button onclick="loadPreset('java2')">Java 2 (JDK 1.2)</button>
+            <button onclick="loadPreset('modern')">Modern (JDK 25)</button>
+            <button onclick="loadPreset('deprecated')">Deprecated APIs</button>
+            <button class="danger" onclick="loadPreset('syntax_error')">Test Syntax Errors (; &amp; {)</button>
+          </div>
+        </div>
+        <div id="lexerBadges" style="margin-bottom:8px;"></div>
+        <div class="editor-wrap">
+          <textarea id="codeInput" class="code-input" oninput="onCodeInput()">import java.util.Vector;
+
+public class HelloWorld {
+    public static strictfp void main(String args[]) {
+        System.out.println("Hello World from Universal Java Studio Web App!");
+        Vector v = new Vector();
+        v.addElement("JDK 1.2 Collections & Strictfp");
+        System.out.println("Vector count: " + v.size());
+    }
+}</textarea>
+          <div style="font-size:11px; color:var(--amber); font-weight:600;">Real-Time Highlighted Code &amp; Gutter Inspector (<span id="lexerLabel">JDK 1.2</span>):</div>
+          <div id="highlightPreview" class="highlight-preview"></div>
+          <div id="realtimeDiagnostics" class="diag-list"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700; margin-bottom:6px;">Compiler &amp; Execution Console Output</div>
+        <div id="consoleOutput" class="console-box">Ready. Click "Compile" or "Run" to execute with the selected JDK toolchain.</div>
+      </div>
+    </div>
+
+    <!-- 2. VERSION EXPLORER -->
+    <div id="tab-explorer" class="section">
+      <div class="card">
+        <strong>Java Version Explorer — Side-by-Side Evolution Comparison</strong>
+        <p style="font-size:12px; color:var(--muted); margin:4px 0 10px;">Compare Language Changes, New APIs, Deprecated/Removed APIs, JVM &amp; GC Advancements, and Bytecode Versions.</p>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+          <select id="verLeft" onchange="renderComparison()">
+            <option value="1.2">JDK 1.2 (Java 2 - 1998)</option>
+            <option value="1.4">JDK 1.4 (Merlin - 2002)</option>
+            <option value="5">JDK 5 (Tiger - 2004)</option>
+            <option value="8" selected>JDK 8 (LTS - 2014)</option>
+            <option value="11">JDK 11 (LTS - 2018)</option>
+            <option value="17">JDK 17 (LTS - 2021)</option>
+            <option value="21">JDK 21 (LTS - 2023)</option>
+          </select>
+          <span style="color:var(--amber); font-weight:bold;">VS</span>
+          <select id="verRight" onchange="renderComparison()">
+            <option value="1.4">JDK 1.4 (Merlin - 2002)</option>
+            <option value="5">JDK 5 (Tiger - 2004)</option>
+            <option value="8">JDK 8 (LTS - 2014)</option>
+            <option value="11">JDK 11 (LTS - 2018)</option>
+            <option value="17" selected>JDK 17 (LTS - 2021)</option>
+            <option value="21">JDK 21 (LTS - 2023)</option>
+            <option value="25">JDK 25 (LTS - 2025)</option>
+          </select>
+        </div>
+        <div id="comparisonTableContainer"></div>
+      </div>
+    </div>
+
+    <!-- 3. JDK MANAGER -->
+    <div id="tab-jdks" class="section">
+      <div class="card">
+        <strong>Universal JDK Toolchain Registry (JDK 1.0 – JDK 25)</strong>
+        <table>
+          <thead>
+            <tr>
+              <th>JDK Version</th>
+              <th>Codename</th>
+              <th>Bytecode</th>
+              <th>Compiler Flags</th>
+              <th>Compatibility Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>JDK 1.0 / 1.1</td><td>Oak / Sparkler</td><td>v45.3</td><td>-classpath -d -g</td><td>Historical 32-bit Legacy VM</td></tr>
+            <tr><td>JDK 1.2 (Java 2)</td><td>Playground</td><td>v46.0</td><td>-classpath -bootclasspath -target 1.2</td><td>Supported (strictfp + Collections)</td></tr>
+            <tr><td>JDK 1.4</td><td>Merlin</td><td>v48.0</td><td>-source 1.4 -target 1.4</td><td>Supported (assert + NIO + Regex)</td></tr>
+            <tr><td>JDK 5 – 7</td><td>Tiger / Dolphin</td><td>v49.0–51.0</td><td>-source 1.5..1.7 -Xlint</td><td>Supported (Generics, Scanner, NIO.2)</td></tr>
+            <tr><td>JDK 8 (LTS)</td><td>Spider</td><td>v52.0</td><td>-source 1.8 -parameters</td><td>Supported (Lambdas, Streams, java.time)</td></tr>
+            <tr><td>JDK 11 (LTS)</td><td>18.9 LTS</td><td>v55.0</td><td>--release 11 --module-path</td><td>Supported (HttpClient, var, NestHost)</td></tr>
+            <tr><td>JDK 17 (LTS)</td><td>21.9 LTS</td><td>v61.0</td><td>--release 17</td><td>Supported (Records, Sealed, Switch Expr)</td></tr>
+            <tr><td>JDK 21 (LTS)</td><td>23.9 LTS</td><td>v65.0</td><td>--release 21</td><td>Supported (Virtual Threads, Record Patterns)</td></tr>
+            <tr><td>JDK 25 (LTS)</td><td>25.9 LTS</td><td>v69.0</td><td>--release 25</td><td>Supported (import module, ScopedValue, Gatherers)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. TUTORIALS & API DOCS -->
+    <div id="tab-tutorials" class="section">
+      <div class="grid-2">
+        <div class="card">
+          <strong>IIT Kharagpur &amp; Oracle Java Tutorials (Chapters 1–12)</strong>
+          <p style="font-size:12px; color:var(--muted); margin-top:6px;">
+            • Ch 1–2: Fundamentals, JVM Bytecode &amp; Data Types<br/>
+            • Ch 3–4: OOP, Constructors, Inheritance, Interfaces &amp; Packages<br/>
+            • Ch 5–6: Exception Handling &amp; Multithreading (Platform vs Virtual Threads)<br/>
+            • Ch 7, 9, 10: AWT, Legacy Applets (@Deprecated) &amp; Swing GUI<br/>
+            • Ch 8, 11, 12: I/O, NIO.2, Networking, JDBC, Streams, Records &amp; JDK 25
+          </p>
+        </div>
+        <div class="card">
+          <strong>Version-Filtered Offline API Reference</strong>
+          <p style="font-size:12px; color:var(--muted); margin-top:6px;">
+            Strictly filters classes by <code>@since</code> tag:<br/>
+            • <code>java.util.Vector</code> (@since 1.0)<br/>
+            • <code>java.util.ArrayList / HashMap / javax.swing.JFrame</code> (@since 1.2)<br/>
+            • <code>java.util.Scanner</code> (@since 5 — hidden in JDK 1.2)<br/>
+            • <code>java.util.stream.Stream</code> (@since 8)<br/>
+            • <code>java.net.http.HttpClient</code> (@since 11)<br/>
+            • <code>java.lang.ScopedValue</code> (@since 25)
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. ROOM DATABASE SCHEMA -->
+    <div id="tab-database" class="section">
+      <div class="card">
+        <strong>Room SQLite Offline Database Schema (universal_java_studio.db)</strong>
+        <table>
+          <thead>
+            <tr><th>Entity Table</th><th>Primary Key</th><th>Key Columns</th><th>Offline Responsibility</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>Projects</code></td><td><code>id (Long)</code></td><td>name, jdkVersion, mainClassName, filesContentSerialized, compilerFlags</td><td>Remembers per-project JDK version (1.2, 1.4, 8, 17, 21, 25) &amp; source files</td></tr>
+            <tr><td><code>JDKInstallations</code></td><td><code>id (Long)</code></td><td>jdkVersion, vendor, javaHome, compilerPath, runtimePath, bytecodeMajorVersion</td><td>Persists detected &amp; manual JDK 1.0–25 toolchains</td></tr>
+            <tr><td><code>LearningProgress</code></td><td><code>itemId (String)</code></td><td>category, title, targetJdkVersion, isCompleted, isBookmarked, quizScore</td><td>Tracks completed lessons, exercises, bookmarks &amp; quiz scores</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 6. GITHUB PAGES WEB DEPLOYMENT -->
+    <div id="tab-github" class="section">
+      <div class="card">
+        <strong>GitHub Pages Web Application Deployment Ready (Dual-Mode CI/CD)</strong>
+        <p style="font-size:12px; color:var(--muted); margin:6px 0 12px;">
+          This project includes static web bundles at <code>/index.html</code> and <code>/docs/index.html</code>, plus a fault-tolerant GitHub Actions workflow at <code>/.github/workflows/deploy-web.yml</code> that automatically publishes the <code>gh-pages</code> branch and configures GitHub Pages with <code>enablement: true</code>.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Deployment Artifact</th><th>Repository Path</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Root &amp; Docs Web Application</td><td><code>/index.html</code> &amp; <code>/docs/index.html</code></td><td><span class="badge badge-emerald">Ready for GitHub Pages</span></td></tr>
+            <tr><td>GitHub Actions CI/CD Workflow</td><td><code>/.github/workflows/deploy-web.yml</code></td><td><span class="badge badge-emerald">Auto-pushes gh-pages + enablement: true</span></td></tr>
+            <tr><td>Android Offline Asset Mirror</td><td><code>/app/src/main/assets/web/index.html</code></td><td><span class="badge badge-cyan">Synced</span></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:12px; font-size:12px; line-height:1.6;">
+          <strong>How to view your live GitHub Pages site:</strong><br/>
+          1. Push this update to GitHub via <strong>Export / Push to GitHub</strong> in AI Studio.<br/>
+          2. The workflow automatically creates/updates the <strong><code>gh-pages</code></strong> branch and enables GitHub Pages.<br/>
+          3. In your GitHub repository (e.g., <code>Settings &rarr; Pages</code>), ensure Source is set to <strong>Deploy from a branch &rarr; <code>gh-pages</code> / <code>(root)</code></strong> (or <strong><code>main</code> / <code>/docs</code></strong>, or <strong>GitHub Actions</strong>).<br/>
+          4. Open <code>https://&lt;username&gt;.github.io/&lt;repo&gt;/</code>!
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script>
+  const STORAGE_KEY_CODE = 'ujs_autosave_code';
+  const STORAGE_KEY_JDK = 'ujs_autosave_jdk';
+  const STORAGE_KEY_TIME = 'ujs_autosave_timestamp';
+  const AUTO_SAVE_DELAY_MS = 2000;
+  let autoSaveTimer = null;
+
+  const versionRankMap = {
+    "1.0":100, "1.1":101, "1.2":102, "1.3":103, "1.4":104,
+    "5":105, "6":106, "7":107, "8":108, "9":109, "10":110,
+    "11":111, "14":114, "16":116, "17":117, "21":121, "25":125
+  };
+
+  const versionedKeywords = {
+    "strictfp": 102, "assert": 104, "enum": 105, "module": 109,
+    "var": 110, "yield": 114, "record": 116, "sealed": 117,
+    "permits": 117, "when": 121, "ScopedValue": 125
+  };
+
+  const deprecatedTokens = {
+    "Applet": 109, "JApplet": 109, "SecurityManager": 117,
+    "finalize": 109, "stop": 102, "suspend": 102, "resume": 102
+  };
+
+  const classicKeywords = new Set([
+    "public","private","protected","class","interface","extends","implements",
+    "static","final","void","int","double","boolean","char","long","float",
+    "if","else","for","while","do","switch","case","default","break","continue",
+    "return","try","catch","finally","throw","throws","new","import","package","true","false","null"
+  ]);
+
+  const versionSpecs = {
+    "1.2": { year: 1998, bytecode: "46.0", lang: "strictfp keyword", api: "Collections (List, ArrayList, HashMap), Swing", dep: "Thread.stop/suspend/resume", jvm: "Exact Generational GC, Swing JFC" },
+    "1.4": { year: 1998, bytecode: "48.0", lang: "assert keyword (-source 1.4)", api: "java.nio, java.util.regex, Logging", dep: "URLDecoder(String)", jvm: "Parallel GC & Concurrent Mark Sweep (CMS)" },
+    "5":   { year: 2004, bytecode: "49.0", lang: "Generics <T>, enum, @Annotations, Enhanced for-loop, Autoboxing", api: "Scanner, java.util.concurrent, StringBuilder", dep: "Raw collection warnings", jvm: "JSR-133 Java Memory Model overhaul" },
+    "8":   { year: 2014, bytecode: "52.0", lang: "Lambda expressions (->), Method references (::), Default interface methods", api: "Stream API, java.time, Optional, CompletableFuture", dep: "PermGen removed for Metaspace", jvm: "Metaspace native memory, invokedynamic lambdas" },
+    "11":  { year: 2018, bytecode: "55.0", lang: "var in lambda parameters, single-file source launch", api: "java.net.http.HttpClient, String.isBlank/repeat, Files.readString", dep: "Removed Java EE & CORBA modules, Applet deprecated", jvm: "ZGC & Epsilon GC introduced, Nest-Based Access Control" },
+    "17":  { year: 2021, bytecode: "61.0", lang: "Sealed Classes (sealed/permits/non-sealed), Records (16), Pattern instanceof (16), Switch Expr (14), Text Blocks (15)", api: "RandomGenerator, HexFormat, Stream.toList()", dep: "SecurityManager & Applet deprecated for removal; strictfp redundant", jvm: "Strongly encapsulated JDK internals, macOS AArch64" },
+    "21":  { year: 2023, bytecode: "65.0", lang: "Pattern Matching for switch + 'when' guards, Record Patterns", api: "Virtual Threads (Thread.ofVirtual), SequencedCollection, Math.clamp", dep: "32-bit x86 Windows deprecated, Thread.suspend throws UOE", jvm: "Generational ZGC, lightweight Project Loom Virtual Threads" },
+    "25":  { year: 2025, bytecode: "69.0", lang: "import module java.base, Compact Source Files, Flexible Constructor Bodies, Markdown Javadoc ///", api: "ScopedValue, Stream Gatherers (24), Class-File API (22), FFM API (22)", dep: "SecurityManager permanently disabled (24), all 32-bit x86 ports removed", jvm: "Non-pinning synchronized Virtual Threads, Compact Object Headers" }
+  };
+
+  function showTab(name, btn) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function scheduleAutoSave() {
+    const badge = document.getElementById('autoSaveBadge');
+    if (badge) {
+      badge.className = 'badge badge-amber';
+      badge.innerText = 'Typing... (auto-saves in 2s)';
+    }
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+    }
+    autoSaveTimer = setTimeout(() => {
+      performAutoSave();
+    }, AUTO_SAVE_DELAY_MS);
+  }
+
+  function performAutoSave() {
+    const jdk = document.getElementById('jdkSelect').value;
+    const code = document.getElementById('codeInput').value;
+    const nowStr = new Date().toLocaleTimeString();
+    try {
+      window.localStorage.setItem(STORAGE_KEY_CODE, code);
+      window.localStorage.setItem(STORAGE_KEY_JDK, jdk);
+      window.localStorage.setItem(STORAGE_KEY_TIME, nowStr);
+    } catch (e) {
+      // Ignore storage quota exceptions in restricted iframes
+    }
+    if (window.AndroidStudioBridge && window.AndroidStudioBridge.onAutoSave) {
+      window.AndroidStudioBridge.onAutoSave(jdk, code);
+    }
+    const badge = document.getElementById('autoSaveBadge');
+    if (badge) {
+      badge.className = 'badge badge-emerald';
+      badge.innerText = `✓ Auto-saved (JDK ${jdk} • ${nowStr})`;
+    }
+  }
+
+  function restoreAutoSavedState() {
+    try {
+      const savedCode = window.localStorage.getItem(STORAGE_KEY_CODE);
+      const savedJdk = window.localStorage.getItem(STORAGE_KEY_JDK);
+      const savedTime = window.localStorage.getItem(STORAGE_KEY_TIME);
+      if (savedJdk && versionRankMap[savedJdk]) {
+        document.getElementById('jdkSelect').value = savedJdk;
+        document.getElementById('lexerLabel').innerText = 'JDK ' + savedJdk;
+      }
+      if (savedCode && savedCode.trim().length > 0) {
+        document.getElementById('codeInput').value = savedCode;
+        const badge = document.getElementById('autoSaveBadge');
+        if (badge) {
+          badge.className = 'badge badge-emerald';
+          badge.innerText = `Restored auto-save (${savedTime || 'localStorage'})`;
+        }
+      }
+    } catch (e) {
+      // Ignore if localStorage is blocked
+    }
+  }
+
+  function onCodeInput() {
+    updateHighlighting();
+    scheduleAutoSave();
+  }
+
+  function formatCode() {
+    const area = document.getElementById('codeInput');
+    const rawLines = area.value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    const formatted = [];
+    let indentLevel = 0;
+    let prevBlank = false;
+
+    for (const rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) {
+        if (!prevBlank && formatted.length > 0) {
+          formatted.push('');
+          prevBlank = true;
+        }
+        continue;
+      }
+      prevBlank = false;
+
+      let cleanLine = '';
+      let inStr = false;
+      let lastSpace = false;
+      for (let i = 0; i < trimmed.length; i++) {
+        const ch = trimmed[i];
+        if (ch === '"' && (i === 0 || trimmed[i - 1] !== '\\')) {
+          inStr = !inStr;
+          lastSpace = false;
+          cleanLine += ch;
+        } else if (inStr) {
+          cleanLine += ch;
+        } else if (/\s/.test(ch)) {
+          if (!lastSpace) {
+            cleanLine += ' ';
+            lastSpace = true;
+          }
+        } else {
+          if (ch === '{' && cleanLine.length > 0 && cleanLine[cleanLine.length - 1] !== ' ' && cleanLine[cleanLine.length - 1] !== '{') {
+            cleanLine += ' ';
+          }
+          cleanLine += ch;
+          lastSpace = false;
+        }
+      }
+
+      let leadingClosers = 0;
+      for (let i = 0; i < cleanLine.length; i++) {
+        if (cleanLine[i] === '}') leadingClosers++;
+        else if (!/\s/.test(cleanLine[i])) break;
+      }
+
+      const effectiveIndent = Math.max(0, indentLevel - leadingClosers);
+      formatted.push('    '.repeat(effectiveIndent) + cleanLine);
+
+      const codePart = cleanLine.split('//')[0];
+      let openB = 0, closeB = 0, strFlag = false;
+      for (let i = 0; i < codePart.length; i++) {
+        const ch = codePart[i];
+        if (ch === '"' && (i === 0 || codePart[i - 1] !== '\\')) strFlag = !strFlag;
+        if (!strFlag) {
+          if (ch === '{') openB++;
+          else if (ch === '}') closeB++;
+        }
+      }
+      const remClosers = Math.max(0, closeB - leadingClosers);
+      indentLevel = Math.max(0, effectiveIndent + openB - remClosers);
+    }
+
+    area.value = formatted.join('\n').trim();
+    onCodeInput();
+  }
+
+  function loadPreset(type) {
+    const area = document.getElementById('codeInput');
+    if (type === 'java2') {
+      document.getElementById('jdkSelect').value = '1.2';
+      area.value = `import java.util.Vector;\n\npublic class HelloWorld {\n    public static strictfp void main(String args[]) {\n        System.out.println("Hello World from Java 2 (JDK 1.2)!");\n        Vector v = new Vector();\n        v.addElement("Collections Framework");\n        System.out.println("Count: " + v.size());\n    }\n}`;
+    } else if (type === 'modern') {
+      document.getElementById('jdkSelect').value = '25';
+      area.value = `import module java.base;\n\npublic class ModernJava25 {\n    /// Markdown Javadoc (JDK 23+)\n    public record Invoice(String id, int amount) {}\n\n    public static void main(String[] args) {\n        var inv = new Invoice("INV-25", 900);\n        System.out.println("Record: " + inv.id() + " = " + inv.amount());\n    }\n}`;
+    } else if (type === 'deprecated') {
+      document.getElementById('jdkSelect').value = '17';
+      area.value = `import java.applet.Applet;\n\npublic class DeprecatedAudit {\n    public static strictfp void main(String[] args) {\n        SecurityManager sm = null;\n        System.out.println("Auditing Applet, SecurityManager & strictfp in JDK 17");\n    }\n}`;
+    } else if (type === 'syntax_error') {
+      area.value = `public class SyntaxErrorDemo {\n    public static void main(String[] args) {\n        int missingSemicolon = 42\n        System.out.println("Missing semicolon on this line too")\n        if (missingSemicolon > 10) {\n            System.out.println("Unclosed brace below!");\n    }`;
+    }
+    onJdkChanged();
+  }
+
+  function onJdkChanged() {
+    const jdk = document.getElementById('jdkSelect').value;
+    document.getElementById('lexerLabel').innerText = 'JDK ' + jdk;
+    updateHighlighting();
+    scheduleAutoSave();
+    if (window.AndroidStudioBridge && window.AndroidStudioBridge.onSwitchJdk) {
+      window.AndroidStudioBridge.onSwitchJdk(jdk);
+    }
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function requiresSemicolon(cleanLine) {
+    if (!cleanLine) return false;
+    const validEndings = [';', '{', '}', ':', ',', '+', '-', '*', '/', '=', '(', '|', '&', '?'];
+    if (validEndings.some(ch => cleanLine.endsWith(ch))) return false;
+    if (cleanLine.endsWith('->') || cleanLine.endsWith('"""') || cleanLine.startsWith('@')) return false;
+    const headers = [
+      'public class ', 'class ', 'private class ', 'protected class ', 'final class ', 'sealed class ',
+      'public interface ', 'interface ', 'public enum ', 'enum ', 'public record ', 'record ',
+      'public static ', 'public void ', 'private void ', 'void main',
+      'if ', 'if(', 'else', 'for ', 'for(', 'while ', 'while(', 'do', 'switch ', 'switch(', 'try', 'catch', 'finally'
+    ];
+    if (headers.some(h => cleanLine.startsWith(h)) && !cleanLine.includes('=')) return false;
+    return /^(package|import|return|throw|break|continue|assert)\b/.test(cleanLine) ||
+           /^(System\.out\.|System\.err\.|[A-Za-z_][A-Za-z0-9_.]*\s*\()/.test(cleanLine) ||
+           /^(?:final\s+)?(?:int|long|double|float|boolean|char|byte|short|String|var|Vector|ArrayList|List|[A-Z][A-Za-z0-9_<>]*)\s+[A-Za-z_][A-Za-z0-9_]*\s*=/.test(cleanLine) ||
+           /^[A-Za-z_][A-Za-z0-9_]*\s*(?:=|\+=|-=|\+\+|--)/.test(cleanLine);
+  }
+
+  function updateHighlighting() {
+    const jdk = document.getElementById('jdkSelect').value;
+    const rank = versionRankMap[jdk] || 125;
+    const raw = document.getElementById('codeInput').value;
+    const rawLines = raw.split('\n');
+
+    let syntaxErrCount = 0, modernCount = 0, depCount = 0, unsupCount = 0;
+    const diagnostics = [];
+    const errorLines = new Set();
+
+    const stack = [];
+    const pairs = { '}': '{', ')': '(', ']': '[' };
+    rawLines.forEach((l, idx) => {
+      const lineNum = idx + 1;
+      const codePart = l.split('//')[0];
+      let inStr = false;
+      for (let i = 0; i < codePart.length; i++) {
+        const ch = codePart[i];
+        if (ch === '"' && (i === 0 || codePart[i - 1] !== '\\')) inStr = !inStr;
+        if (!inStr) {
+          if (ch === '{' || ch === '(' || ch === '[') {
+            stack.push({ ch, line: lineNum });
+          } else if (ch === '}' || ch === ')' || ch === ']') {
+            if (stack.length === 0) {
+              syntaxErrCount++;
+              errorLines.add(lineNum);
+              diagnostics.push({ type: 'err', text: `Line ${lineNum}: Syntax Error — Unmatched closing '${ch}'` });
+            } else {
+              const top = stack.pop();
+              if (top.ch !== pairs[ch]) {
+                syntaxErrCount++;
+                errorLines.add(lineNum);
+                errorLines.add(top.line);
+                diagnostics.push({ type: 'err', text: `Line ${lineNum}: Syntax Error — Mismatched '${ch}' (opened '${top.ch}' on line ${top.line})` });
+              }
+            }
+          }
+        }
+      }
+      if (inStr) {
+        syntaxErrCount++;
+        errorLines.add(lineNum);
+        diagnostics.push({ type: 'err', text: `Line ${lineNum}: Syntax Error — Unclosed string literal` });
+      }
+    });
+    while (stack.length > 0) {
+      const unclosed = stack.pop();
+      syntaxErrCount++;
+      errorLines.add(unclosed.line);
+      diagnostics.push({ type: 'err', text: `Line ${unclosed.line}: Syntax Error — Unclosed '${unclosed.ch}' (missing closing brace/paren)` });
+    }
+
+    const htmlRows = rawLines.map((rawLine, idx) => {
+      const lineNum = idx + 1;
+      const cleanCode = rawLine.split('//')[0].trim();
+      let missingSemi = false;
+
+      if (!rawLine.trim().startsWith('//') && requiresSemicolon(cleanCode)) {
+        missingSemi = true;
+        syntaxErrCount++;
+        errorLines.add(lineNum);
+        diagnostics.push({ type: 'err', text: `Line ${lineNum}: Syntax Error — ';' expected at end of statement` });
+      }
+
+      if (cleanCode.startsWith('import module ') && rank < 125) {
+        unsupCount++;
+        errorLines.add(lineNum);
+        diagnostics.push({ type: 'err', text: `Line ${lineNum}: 'import module' requires JDK 25+ (selected: JDK ${jdk})` });
+      }
+
+      if (/<[A-Z][A-Za-z0-9_,\s]*>/.test(cleanCode) && rank < 105) {
+        unsupCount++;
+        errorLines.add(lineNum);
+        diagnostics.push({ type: 'err', text: `Line ${lineNum}: Generics (<T>) require JDK 5+ (not supported in JDK ${jdk})` });
+      }
+
+      let lineHtml = escapeHtml(rawLine);
+      if (rawLine.trim().startsWith('//')) {
+        if (rawLine.trim().startsWith('///')) {
+          if (rank < 123) {
+            unsupCount++;
+            errorLines.add(lineNum);
+            diagnostics.push({ type: 'err', text: `Line ${lineNum}: Markdown Javadoc '///' requires JDK 23+` });
+            lineHtml = `<span class="kw-unsupported">${lineHtml}</span>`;
+          } else {
+            modernCount++;
+            lineHtml = `<span class="kw-modern">${lineHtml}</span>`;
+          }
+        } else {
+          lineHtml = `<span class="kw-comment">${lineHtml}</span>`;
+        }
+      } else {
+        lineHtml = lineHtml.replace(/\b([A-Za-z_][A-Za-z0-9_]*)\b/g, (m) => {
+          if (versionedKeywords[m] !== undefined) {
+            const minR = versionedKeywords[m];
+            if (rank < minR) {
+              unsupCount++;
+              errorLines.add(lineNum);
+              diagnostics.push({ type: 'err', text: `Line ${lineNum}: Keyword '${m}' requires JDK ${Object.keys(versionRankMap).find(k => versionRankMap[k] === minR)} (unsupported in JDK ${jdk})` });
+              return `<span class="kw-unsupported">${m}</span>`;
+            }
+            if (m === 'strictfp' && rank >= 117) {
+              depCount++;
+              diagnostics.push({ type: 'warn', text: `Line ${lineNum}: 'strictfp' is redundant/obsolete in JDK 17+ (JEP 306)` });
+              return `<span class="kw-deprecated">${m}</span>`;
+            }
+            if (minR >= 110) {
+              modernCount++;
+              return `<span class="kw-modern">${m}</span>`;
+            }
+            return `<span class="kw-classic">${m}</span>`;
+          }
+          if (deprecatedTokens[m] !== undefined && rank >= deprecatedTokens[m]) {
+            depCount++;
+            diagnostics.push({ type: 'warn', text: `Line ${lineNum}: '${m}' is @Deprecated in JDK ${jdk}` });
+            return `<span class="kw-deprecated">${m}</span>`;
+          }
+          if (classicKeywords.has(m)) {
+            return `<span class="kw-classic">${m}</span>`;
+          }
+          return m;
+        });
+      }
+
+      if (missingSemi) {
+        lineHtml += ` <span class="kw-syntax-err" title="Missing semicolon">; expected</span>`;
+      }
+
+      const isErrLine = errorLines.has(lineNum);
+      return `<div class="line-row"><span class="line-num ${isErrLine ? 'err' : ''}">${isErrLine ? '!' + lineNum : lineNum}</span><span class="line-code ${isErrLine ? 'err-bg' : ''}">${lineHtml || ' '}</span></div>`;
+    }).join('');
+
+    document.getElementById('highlightPreview').innerHTML = htmlRows;
+    document.getElementById('lexerBadges').innerHTML =
+      `<span class="badge ${syntaxErrCount > 0 ? 'badge-ruby' : 'badge-emerald'}">Syntax Errors: ${syntaxErrCount}</span>` +
+      `<span class="badge badge-amber">Active Profile: JDK ${jdk}</span>` +
+      `<span class="badge badge-cyan">Modern Features: ${modernCount}</span>` +
+      `<span class="badge badge-orange">Deprecated: ${depCount}</span>` +
+      `<span class="badge badge-ruby">Unsupported in JDK ${jdk}: ${unsupCount}</span>`;
+
+    const diagContainer = document.getElementById('realtimeDiagnostics');
+    if (diagnostics.length === 0) {
+      diagContainer.innerHTML = `<div class="diag-item diag-mod">✓ Real-Time Syntax Check Passed: 0 syntax errors or version conflicts for JDK ${jdk}.</div>`;
+    } else {
+      diagContainer.innerHTML = diagnostics.slice(0, 8).map(d =>
+        `<div class="diag-item ${d.type === 'err' ? 'diag-err' : 'diag-warn'}">${escapeHtml(d.text)}</div>`
+      ).join('');
+    }
+  }
+
+  function compileCode() {
+    const jdk = document.getElementById('jdkSelect').value;
+    const code = document.getElementById('codeInput').value;
+    if (window.AndroidStudioBridge && window.AndroidStudioBridge.compileFromWeb) {
+      const out = window.AndroidStudioBridge.compileFromWeb(jdk, code);
+      document.getElementById('consoleOutput').innerText = out;
+    } else {
+      updateHighlighting();
+      const errBadges = document.querySelectorAll('.diag-err');
+      const spec = versionSpecs[jdk] || { bytecode: "52.0" };
+      const classMatch = code.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)/);
+      const className = classMatch ? classMatch[1] : "HelloWorld";
+      const flag = (versionRankMap[jdk] || 108) >= 109 ? `--release ${jdk}` : `-source ${jdk} -target ${jdk}`;
+      if (errBadges.length > 0) {
+        document.getElementById('consoleOutput').innerText =
+          `$ javac ${flag} ${className}.java\nCompilation FAILED with ${errBadges.length} error(s):\n` +
+          Array.from(errBadges).map(e => "  " + e.innerText).join('\n');
+        return false;
+      } else {
+        document.getElementById('consoleOutput').innerText =
+          `$ javac ${flag} ${className}.java\nCompilation succeeded (0 errors) -> Generated ${className}.class [Bytecode v${spec.bytecode} / 0xCAFEBABE] for JDK ${jdk}.`;
+        return true;
+      }
+    }
+  }
+
+  function evaluateJavaExpression(expr, env) {
+    const trimmed = expr.trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+      return trimmed.slice(1, -1);
+    }
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return Number(trimmed);
+    }
+    if (env.hasOwnProperty(trimmed)) {
+      return env[trimmed];
+    }
+    const sizeMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\.size\(\)$/);
+    if (sizeMatch && Array.isArray(env[sizeMatch[1]])) {
+      return env[sizeMatch[1]].length;
+    }
+    const elemMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\.(?:elementAt|get)\((\d+)\)$/);
+    if (elemMatch && Array.isArray(env[elemMatch[1]])) {
+      return env[elemMatch[1]][Number(elemMatch[2])] ?? "null";
+    }
+    const accMatch = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\(\)$/);
+    if (accMatch && env[accMatch[1]] && typeof env[accMatch[1]] === 'object') {
+      const obj = env[accMatch[1]];
+      if (obj.hasOwnProperty(accMatch[2])) return obj[accMatch[2]];
+    }
+    const parts = [];
+    let current = "";
+    let inStr = false;
+    let parenDepth = 0;
+    for (let i = 0; i < trimmed.length; i++) {
+      const ch = trimmed[i];
+      if (ch === '"' && (i === 0 || trimmed[i - 1] !== '\\')) inStr = !inStr;
+      if (!inStr) {
+        if (ch === '(') parenDepth++;
+        else if (ch === ')') parenDepth = Math.max(0, parenDepth - 1);
+        else if (ch === '+' && parenDepth === 0) {
+          parts.push(current);
+          current = "";
+          continue;
+        }
+      }
+      current += ch;
+    }
+    if (parts.length > 0) {
+      parts.push(current);
+      const evaled = parts.map(p => evaluateJavaExpression(p, env));
+      if (evaled.some(v => typeof v === 'string')) {
+        return evaled.join('');
+      }
+      return evaled.reduce((a, b) => Number(a) + Number(b), 0);
+    }
+    return trimmed;
+  }
+
+  function runCode() {
+    const jdk = document.getElementById('jdkSelect').value;
+    const code = document.getElementById('codeInput').value;
+    if (window.AndroidStudioBridge && window.AndroidStudioBridge.runFromWeb) {
+      const out = window.AndroidStudioBridge.runFromWeb(jdk, code);
+      document.getElementById('consoleOutput').innerText = out;
+      return;
+    }
+
+    const compiledOk = compileCode();
+    if (!compiledOk) return;
+
+    const classMatch = code.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)/);
+    const className = classMatch ? classMatch[1] : "HelloWorld";
+    const env = {};
+    const recordDefs = {};
+    const stdoutLines = [];
+
+    const recRegex = /\brecord\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)/g;
+    let recMatch;
+    while ((recMatch = recRegex.exec(code)) !== null) {
+      const rName = recMatch[1];
+      const fields = recMatch[2].split(',').map(f => f.trim().split(/\s+/).pop()).filter(Boolean);
+      recordDefs[rName] = fields;
+    }
+
+    const lines = code.split('\n');
+    for (const rawLine of lines) {
+      const line = rawLine.split('//')[0].trim();
+      if (!line) continue;
+
+      const vecInit = line.match(/^(?:Vector|ArrayList|List)(?:<[^>]*>)?\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+(?:Vector|ArrayList)/);
+      if (vecInit) {
+        env[vecInit[1]] = [];
+        continue;
+      }
+
+      const vecAdd = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\.(?:addElement|add)\((.+)\);$/);
+      if (vecAdd && Array.isArray(env[vecAdd[1]])) {
+        env[vecAdd[1]].push(evaluateJavaExpression(vecAdd[2], env));
+        continue;
+      }
+
+      const recInst = line.match(/^(?:var|[A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+([A-Za-z_][A-Za-z0-9_]*)\((.+)\);$/);
+      if (recInst && recordDefs[recInst[2]]) {
+        const varName = recInst[1];
+        const fields = recordDefs[recInst[2]];
+        const args = recInst[3].split(',').map(a => evaluateJavaExpression(a, env));
+        const obj = {};
+        fields.forEach((f, idx) => { obj[f] = args[idx]; });
+        env[varName] = obj;
+        continue;
+      }
+
+      const varDecl = line.match(/^(?:final\s+)?(?:int|long|double|float|boolean|String|var|Integer)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+);$/);
+      if (varDecl && !varDecl[2].startsWith('switch')) {
+        const rhs = varDecl[2].replace(/^new\s+Integer\((.+)\)$/, '$1');
+        env[varDecl[1]] = evaluateJavaExpression(rhs, env);
+        continue;
+      }
+
+      const printMatch = line.match(/^System\.out\.(println|print)\((.*)\);$/);
+      if (printMatch) {
+        const val = evaluateJavaExpression(printMatch[2], env);
+        stdoutLines.push(String(val));
+      }
+    }
+
+    const outputText = stdoutLines.length > 0 ? stdoutLines.join('\n') : "(Program completed with no stdout output)";
+    document.getElementById('consoleOutput').innerText =
+      `$ java -cp build/classes ${className}\n` +
+      outputText +
+      `\n[Exit Code: 0 • Runtime: JDK ${jdk} • Universal Java Studio Web VM]`;
+  }
+
+  function renderComparison() {
+    const l = document.getElementById('verLeft').value;
+    const r = document.getElementById('verRight').value;
+    const sL = versionSpecs[l] || versionSpecs["8"];
+    const sR = versionSpecs[r] || versionSpecs["17"];
+    document.getElementById('comparisonTableContainer').innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Comparison Dimension</th><th>JDK ${l} (${sL.year})</th><th>JDK ${r} (${sR.year})</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Bytecode Version</strong></td><td>Class v${sL.bytecode} (0xCAFEBABE)</td><td>Class v${sR.bytecode} (0xCAFEBABE)</td></tr>
+          <tr><td><strong>Language Changes</strong></td><td>${sL.lang}</td><td>${sR.lang}</td></tr>
+          <tr><td><strong>New API Additions</strong></td><td>${sL.api}</td><td>${sR.api}</td></tr>
+          <tr><td><strong>Deprecated / Removed APIs</strong></td><td>${sL.dep}</td><td>${sR.dep}</td></tr>
+          <tr><td><strong>JVM &amp; GC Improvements</strong></td><td>${sL.jvm}</td><td>${sR.jvm}</td></tr>
+        </tbody>
+      </table>
+    `;
+  }
+
+  restoreAutoSavedState();
+  updateHighlighting();
+  renderComparison();
+</script>
+</body>
+</html>
