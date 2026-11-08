@@ -131,4 +131,10 @@ class ExampleUnitTest {
         assertFalse(docsForJava2.any { it.className == "Stream" })
         assertFalse(docsForJava2.any { it.className == "ScopedValue" })
     }
+
+    @Test
+    fun `JavaStudioViewModel exposes single-argument Application constructor for AndroidViewModelFactory`() {
+        val ctor = com.example.ui.JavaStudioViewModel::class.java.getConstructor(android.app.Application::class.java)
+        org.junit.Assert.assertNotNull(ctor)
+    }
 }

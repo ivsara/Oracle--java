@@ -44,7 +44,7 @@ enum class StudioModule(val title: String) {
     RESOURCES("Offline Resources")
 }
 
-class JavaStudioViewModel(
+class JavaStudioViewModel @JvmOverloads constructor(
     application: Application,
     private val customRepository: JavaStudioRepository? = null
 ) : AndroidViewModel(application) {
@@ -179,7 +179,9 @@ class JavaStudioViewModel(
 
     init {
         viewModelScope.launch {
-            repository.ensureSeeded()
+            withContext(Dispatchers.IO) {
+                runCatching { repository.ensureSeeded() }
+            }
             val allProjs = projects.value
             if (allProjs.isNotEmpty() && _activeProjectId.value == 0L) {
                 selectProject(allProjs.first())
