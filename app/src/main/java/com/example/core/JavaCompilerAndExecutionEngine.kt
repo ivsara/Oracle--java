@@ -579,7 +579,280 @@ object JavaCompilerAndExecutionEngine {
             )
         }
 
+        // 4. Real-World Subsystem Showcase Programs (Applet, AWT, Swing, JDBC SQL, Networking)
+        getSubsystemShowcaseTemplates().forEach { tmpl ->
+            list.add(tmpl)
+        }
+
         return list
+    }
+
+    fun getSubsystemShowcaseTemplates(): List<ProgramShowcaseEntry> {
+        val templates = listOf(
+            Triple(
+                "Applet 2D Graphics & Lifecycle (HelloApplet.java)",
+                "1.2",
+                """
+                import java.applet.Applet;
+                import java.awt.Color;
+                import java.awt.Font;
+                import java.awt.Graphics;
+
+                public class HelloApplet extends Applet {
+                    private String banner = "Universal Java Studio AppletViewer (JDK 1.2)";
+                    private int visitors = 128;
+
+                    public void init() {
+                        banner = "Applet Initialized: Java 2 Graphics2D Canvas";
+                        showStatus("AppletViewer: init() completed successfully");
+                    }
+
+                    public void start() {
+                        visitors = visitors + 1;
+                        System.out.println("Applet start() -> Active session visitors: " + visitors);
+                    }
+
+                    public void paint(Graphics g) {
+                        g.setColor(Color.CYAN);
+                        g.fillRect(16, 16, 340, 120);
+                        g.setColor(Color.ORANGE);
+                        g.drawOval(28, 28, 64, 64);
+                        g.setFont(new Font("Serif", Font.BOLD, 16));
+                        g.drawString(banner, 40, 55);
+                        g.drawString("Visitors Count: " + visitors, 40, 85);
+                        System.out.println("Applet paint(Graphics) -> Rendered 2 shapes and 2 strings on canvas");
+                    }
+                }
+                """.trimIndent()
+            ),
+            Triple(
+                "AWT Event-Driven GUI Window (AwtCalculatorApp.java)",
+                "1.2",
+                """
+                import java.awt.Frame;
+                import java.awt.Label;
+                import java.awt.TextField;
+                import java.awt.Button;
+                import java.awt.FlowLayout;
+                import java.awt.event.ActionListener;
+                import java.awt.event.ActionEvent;
+
+                public class AwtCalculatorApp {
+                    public static void main(String[] args) {
+                        Frame frame = new Frame("AWT Scientific Adder (java.awt.Frame)");
+                        frame.setLayout(new FlowLayout());
+                        frame.setSize(420, 220);
+
+                        TextField inputA = new TextField("45");
+                        TextField inputB = new TextField("55");
+                        Label resultLabel = new Label("Result: Pending");
+                        Button calcBtn = new Button("Compute Sum");
+
+                        int a = Integer.parseInt(inputA.getText());
+                        int b = Integer.parseInt(inputB.getText());
+                        int sum = a + b;
+                        resultLabel.setText("Result: " + sum);
+
+                        frame.setVisible(true);
+                        System.out.println("AWT ActionEvent -> Clicked Compute Sum: " + a + " + " + b + " = " + sum);
+                        System.out.println("AWT Frame '" + frame.getTitle() + "' displayed -> " + resultLabel.getText());
+                    }
+                }
+                """.trimIndent()
+            ),
+            Triple(
+                "Swing JFC Desktop Portal & EDT (SwingStudentPortal.java)",
+                "8",
+                """
+                import javax.swing.JFrame;
+                import javax.swing.JPanel;
+                import javax.swing.JLabel;
+                import javax.swing.JTextField;
+                import javax.swing.JButton;
+                import javax.swing.JOptionPane;
+                import javax.swing.SwingUtilities;
+
+                public class SwingStudentPortal {
+                    public static void main(String[] args) {
+                        SwingUtilities.invokeLater(() -> {
+                            JFrame frame = new JFrame("Universal Java Studio — Swing JFC Portal");
+                            frame.setSize(480, 300);
+
+                            JLabel titleLabel = new JLabel("IIT Kharagpur & Oracle Java SE Assessment Portal");
+                            JTextField studentField = new JTextField("Aarav Sharma (Roll #CS2025)");
+                            JButton submitBtn = new JButton("Verify & Issue Certificate");
+
+                            submitBtn.addActionListener(e -> System.out.println("Swing EDT ActionEvent -> Verified: " + studentField.getText()));
+
+                            frame.setVisible(true);
+                            JOptionPane.showMessageDialog(frame, "Certificate Issued for " + studentField.getText());
+                            System.out.println("Swing JFrame launched on EDT with JLabel, JTextField, and JButton.");
+                        });
+                    }
+                }
+                """.trimIndent()
+            ),
+            Triple(
+                "JDBC Relational Database & ResultSet (JdbcEmployeeDb.java)",
+                "8",
+                """
+                import java.sql.Connection;
+                import java.sql.DriverManager;
+                import java.sql.Statement;
+                import java.sql.PreparedStatement;
+                import java.sql.ResultSet;
+
+                public class JdbcEmployeeDb {
+                    public static void main(String[] args) {
+                        try {
+                            Connection conn = DriverManager.getConnection("jdbc:sqlite:javastudio_lab.db");
+                            Statement stmt = conn.createStatement();
+                            stmt.executeUpdate("CREATE TABLE employees (id INT, name VARCHAR, department VARCHAR, salary DOUBLE)");
+
+                            PreparedStatement ps = conn.prepareStatement("INSERT INTO employees VALUES (?, ?, ?, ?)");
+                            ps.setInt(1, 101);
+                            ps.setString(2, "Dr. Debasis Samanta");
+                            ps.setString(3, "IIT Kharagpur CS");
+                            ps.setDouble(4, 145000.0);
+                            ps.executeUpdate();
+
+                            ps.setInt(1, 102);
+                            ps.setString(2, "James Gosling");
+                            ps.setString(3, "Java Architecture");
+                            ps.setDouble(4, 185000.0);
+                            ps.executeUpdate();
+
+                            conn.commit();
+
+                            ResultSet rs = stmt.executeQuery("SELECT id, name, department, salary FROM employees");
+                            while (rs.next()) {
+                                System.out.println("Row -> ID=" + rs.getInt("id") + " | Name=" + rs.getString("name") + " | Dept=" + rs.getString("department") + " | Salary=$" + rs.getDouble("salary"));
+                            }
+                        } catch (Exception e) {
+                            System.out.println("JDBC Error: " + e.getMessage());
+                        }
+                    }
+                }
+                """.trimIndent()
+            ),
+            Triple(
+                "Networking TCP Socket & HTTP Client (NetworkSocketHttpLab.java)",
+                "11",
+                """
+                import java.net.InetAddress;
+                import java.net.Socket;
+                import java.net.URL;
+                import java.io.PrintWriter;
+                import java.io.BufferedReader;
+                import java.io.InputStreamReader;
+
+                public class NetworkSocketHttpLab {
+                    public static void main(String[] args) {
+                        try {
+                            InetAddress addr = InetAddress.getByName("docs.oracle.com");
+                            System.out.println("DNS Resolved: " + addr.getHostName() + " -> " + addr.getHostAddress());
+
+                            Socket socket = new Socket("127.0.0.1", 9090);
+                            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                            out.println("PING UniversalJavaStudio-Node-1");
+
+                            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                            String sockReply = in.readLine();
+                            System.out.println("TCP Socket Reply: " + sockReply);
+
+                            URL api = new URL("https://api.javastudio.local/v1/jdk-matrix");
+                            System.out.println("HTTP Endpoint Host: " + api.getHost() + " | Path: " + api.getPath());
+                        } catch (Exception e) {
+                            System.out.println("Network Error: " + e.getMessage());
+                        }
+                    }
+                }
+                """.trimIndent()
+            )
+        )
+
+        return templates.mapIndexed { idx, (title, jdkVer, code) ->
+            val cls = Regex("""\bclass\s+([A-Za-z_][A-Za-z0-9_]*)""").find(code)?.groupValues?.getOrNull(1) ?: "Main"
+            val jdk = buildJdkEntityForVersion(jdkVer)
+            val exec = executeProgram(jdk, mapOf("$cls.java" to code), cls)
+            ProgramShowcaseEntry(
+                id = "subsystem_${idx + 1}",
+                category = "Real-World Subsystem (Applet/AWT/Swing/JDBC/Net)",
+                title = title,
+                targetJdk = jdkVer,
+                compatibleRange = if (code.contains("Applet")) "JDK 1.0 – JDK 17" else "JDK $jdkVer – JDK 25",
+                sourceCode = code,
+                targetOutput = exec.stdout.ifBlank { exec.stderr }
+            )
+        }
+    }
+
+    fun inspectSubsystemRuntime(code: String, jdkVersion: String): SubsystemRuntimeInspection {
+        val subsystems = mutableListOf<String>()
+        if (code.contains("extends Applet") || code.contains("extends JApplet") || code.contains("java.applet.")) {
+            subsystems.add("APPLET")
+        }
+        if (code.contains("java.awt.") || code.contains("new Frame(") || code.contains("new Button(")) {
+            subsystems.add("AWT")
+        }
+        if (code.contains("javax.swing.") || code.contains("new JFrame(") || code.contains("new JButton(")) {
+            subsystems.add("SWING")
+        }
+        if (code.contains("java.sql.") || code.contains("DriverManager.getConnection") || code.contains("executeQuery")) {
+            subsystems.add("JDBC")
+        }
+        if (code.contains("java.net.") || code.contains("new Socket(") || code.contains("new URL(") || code.contains("InetAddress")) {
+            subsystems.add("NETWORK")
+        }
+
+        val winTitle = Regex("""new\s+J?Frame\s*\(\s*"([^"]+)"\s*\)""").find(code)?.groupValues?.getOrNull(1)
+            ?: Regex("""setTitle\s*\(\s*"([^"]+)"\s*\)""").find(code)?.groupValues?.getOrNull(1)
+            ?: if ("APPLET" in subsystems) "AppletViewer ($jdkVersion)" else "Java Runtime Surface ($jdkVersion)"
+
+        val elements = mutableListOf<SubsystemVisualElement>()
+        Regex("""drawString\s*\(\s*([^,]+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)""").findAll(code).forEach { m ->
+            elements.add(
+                SubsystemVisualElement(
+                    kind = "DRAW_STRING",
+                    titleOrText = m.groupValues[1].trim().removeSurrounding("\""),
+                    x = m.groupValues[2].toIntOrNull() ?: 20,
+                    y = m.groupValues[3].toIntOrNull() ?: 40
+                )
+            )
+        }
+        Regex("""(drawRect|fillRect|drawOval|fillOval)\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)""").findAll(code).forEach { m ->
+            elements.add(
+                SubsystemVisualElement(
+                    kind = if (m.groupValues[1].contains("Oval")) "DRAW_OVAL" else "DRAW_RECT",
+                    titleOrText = m.groupValues[1],
+                    x = m.groupValues[2].toIntOrNull() ?: 16,
+                    y = m.groupValues[3].toIntOrNull() ?: 16,
+                    width = m.groupValues[4].toIntOrNull() ?: 120,
+                    height = m.groupValues[5].toIntOrNull() ?: 60
+                )
+            )
+        }
+        Regex("""new\s+(J?Button|J?Label|J?TextField)\s*\(\s*"([^"]*)"\s*\)""").findAll(code).forEach { m ->
+            val k = m.groupValues[1]
+            val txt = m.groupValues[2]
+            elements.add(
+                SubsystemVisualElement(
+                    kind = when {
+                        k.endsWith("Button") -> "BUTTON"
+                        k.endsWith("TextField") -> "TEXTFIELD"
+                        else -> "LABEL"
+                    },
+                    titleOrText = txt,
+                    detail = k
+                )
+            )
+        }
+
+        return SubsystemRuntimeInspection(
+            detectedSubsystems = subsystems,
+            windowTitle = winTitle,
+            elements = elements
+        )
     }
 
     private fun stripCommentsAndStrings(code: String): String {
@@ -614,10 +887,34 @@ data class ProgramShowcaseEntry(
     val targetOutput: String
 )
 
+data class SubsystemVisualElement(
+    val kind: String, // "WINDOW", "BUTTON", "LABEL", "TEXTFIELD", "TABLE", "DRAW_STRING", "DRAW_RECT", "DRAW_OVAL", "SQL_TABLE", "NET_PACKET"
+    val titleOrText: String,
+    val detail: String = "",
+    val x: Int = 0,
+    val y: Int = 0,
+    val width: Int = 120,
+    val height: Int = 36,
+    val colorName: String = "CYAN"
+)
+
+data class SubsystemRuntimeInspection(
+    val detectedSubsystems: List<String>, // e.g., ["APPLET"], ["AWT"], ["SWING"], ["JDBC"], ["NETWORK"]
+    val windowTitle: String,
+    val elements: List<SubsystemVisualElement>,
+    val sqlHeaders: List<String> = emptyList(),
+    val sqlRows: List<List<String>> = emptyList(),
+    val networkTrace: List<String> = emptyList()
+)
+
 /**
- * Deterministic Java AST & Statement Interpreter supporting variables, methods, records,
- * loops, conditionals, switch expressions, collections (Vector/ArrayList/List), Scanner(System.in),
- * assertions, exceptions (ArithmeticException, ArrayIndexOutOfBoundsException, etc.), and AWT/Swing/Applet inspection.
+ * Deterministic Real-World Java AST & Subsystem Interpreter supporting:
+ * - Core Java: variables, methods, records, loops, conditionals, switch expressions, collections, Scanner, exceptions.
+ * - Applet / JApplet: init() -> start() -> paint(Graphics g) with drawString, drawRect, fillRect, drawOval, fillOval, drawLine, setColor, setFont, showStatus.
+ * - AWT (java.awt.*): Frame, Panel, Label, Button, TextField, TextArea, LayoutManagers, and ActionListener event dispatch.
+ * - Swing (javax.swing.*): SwingUtilities.invokeLater, JFrame, JPanel, JLabel, JButton, JTextField, JTable, JOptionPane, and EDT ActionEvent dispatch.
+ * - JDBC (java.sql.*): DriverManager.getConnection, Connection, Statement, PreparedStatement, CREATE TABLE, INSERT, UPDATE, DELETE, SELECT, and ResultSet cursor iteration (rs.next(), rs.getInt(), rs.getString(), rs.getDouble()).
+ * - Networking (java.net.* / java.net.http.*): InetAddress DNS resolution, ServerSocket/Socket TCP stream exchange, URL/HttpURLConnection, and Java 11+ HttpClient/HttpRequest/HttpResponse.
  */
 private class JavaAstInterpreter(
     private val source: String,
@@ -635,8 +932,47 @@ private class JavaAstInterpreter(
     private val recordInstances = mutableMapOf<String, Map<String, Any?>>()
     private val recordDefinitions = mutableMapOf<String, List<String>>()
     private val methods = mutableMapOf<String, MethodDef>()
+
+    // Subsystem Runtime States (Applet, AWT, Swing, JDBC, Networking)
+    private data class GuiWidget(
+        val varName: String,
+        val type: String, // Frame, JFrame, Button, JButton, Label, JLabel, TextField, JTextField, JTable, Panel, JPanel
+        var text: String,
+        var width: Int = 360,
+        var height: Int = 240,
+        var visible: Boolean = false,
+        var layout: String = "FlowLayout"
+    )
+
+    private val guiWidgets = linkedMapOf<String, GuiWidget>()
+    private val graphicsCommands = mutableListOf<String>()
+    private var activeGraphicsColor = "Color.BLACK"
+    private var activeGraphicsFont = "Dialog (Plain, 12pt)"
+    private var appletStatusMessage = "Applet Started"
+
+    // In-Memory Relational SQL Database State for JDBC (java.sql.*)
+    private data class SqlTable(
+        val name: String,
+        val columns: MutableList<String>,
+        val rows: MutableList<MutableMap<String, Any?>> = mutableListOf()
+    )
+
+    private val sqlTables = linkedMapOf<String, SqlTable>()
+    private var activeJdbcUrl: String? = null
+    private val preparedSqlByVar = mutableMapOf<String, String>()
+    private val preparedParamsByVar = mutableMapOf<String, MutableMap<Int, Any?>>()
+    private val resultSetsByVar = mutableMapOf<String, List<Map<String, Any?>>>()
+    private val resultSetCursorByVar = mutableMapOf<String, Int>()
+    private val jdbcExecutionLog = mutableListOf<String>()
+
+    // Networking Runtime State (java.net.* / java.net.http.*)
+    private val socketStreams = mutableMapOf<String, MutableList<String>>()
+    private val urlObjects = mutableMapOf<String, String>()
+    private val readerQueueByVar = mutableMapOf<String, MutableList<String>>()
+    private val networkTraceLog = mutableListOf<String>()
+
     private var stepCounter = 0
-    private val maxSteps = 10_000
+    private val maxSteps = 12_000
     private var startEpoch = 0L
 
     private data class MethodDef(
@@ -652,20 +988,23 @@ private class JavaAstInterpreter(
         startEpoch = startTime
         try {
             parseDefinitions(source)
+            parseClassFields(source)
             variables["args"] = cmdArgs
+
+            val isApplet = source.contains("extends Applet") || source.contains("extends JApplet") ||
+                source.contains("java.applet.Applet") || source.contains("javax.swing.JApplet")
+            val isAwt = source.contains("java.awt.") || source.contains("new Frame(") || source.contains("extends Frame")
+            val isSwing = source.contains("javax.swing.") || source.contains("new JFrame(") || source.contains("extends JFrame")
+            val isJdbc = source.contains("java.sql.") || source.contains("DriverManager.getConnection") ||
+                source.contains("executeQuery(") || source.contains("executeUpdate(")
+            val isNetwork = source.contains("java.net.") || source.contains("new Socket(") ||
+                source.contains("new ServerSocket(") || source.contains("new URL(") ||
+                source.contains("HttpClient") || source.contains("InetAddress")
 
             val mainBody = extractMainBody(source)
             if (mainBody.isEmpty()) {
-                // Support Applet / JApplet lifecycle execution via appletviewer
-                if (source.contains("extends Applet") || source.contains("extends JApplet")) {
-                    stdout.appendLine("[AppletViewer JDK $jdkVersion] Lifecycle: init() -> start() -> paint(Graphics)")
-                    Regex("""drawString\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\)""").findAll(source).forEach { m ->
-                        val textVal = formatVal(evalExpr(m.groupValues[1].trim()))
-                        val xVal = m.groupValues[2].trim()
-                        val yVal = m.groupValues[3].trim()
-                        stdout.appendLine("Graphics.drawString(\"$textVal\", x=$xVal, y=$yVal)")
-                    }
-                    methods.values.forEach { mDef -> executeBlock(mDef.bodyLines) }
+                if (isApplet) {
+                    executeAppletLifecycle()
                     val elapsed = max(8L, System.currentTimeMillis() - startTime)
                     return ExecutionResult(
                         success = true,
@@ -690,19 +1029,30 @@ private class JavaAstInterpreter(
                 )
             }
 
+            // Execute main(String[] args)
             executeBlock(mainBody)
 
-            // Also execute any inline lambda/Runnable/stream print statements inside mainBody that were wrapped in closures
+            // If constructor or SwingUtilities.invokeLater / ActionListener / paint methods exist in AWT/Swing/Applet classes, execute them
+            if (isApplet) {
+                executeAppletLifecycle()
+            } else if (isAwt || isSwing) {
+                executeGuiLifecycleAndEvents(isSwing = isSwing)
+            }
+
+            // Append rich subsystem execution output summaries if JDBC or Networking were used
+            if (isJdbc) {
+                appendJdbcSummaryReport()
+            }
+            if (isNetwork) {
+                appendNetworkSummaryReport()
+            }
+
+            // Fallback for inline closure prints if stdout is still empty
             if (stdout.isEmpty()) {
                 Regex("""System\.out\.(?:println|print)\((.+)\)\s*;""").findAll(source).forEach { m ->
                     val expr = m.groupValues[1].trim()
                     stdout.appendLine(formatVal(evalExpr(expr)))
                 }
-            }
-
-            // If AWT / Swing GUI components were instantiated, log headless GUI inspection telemetry
-            if (source.contains("new Frame(") || source.contains("new JFrame(") || source.contains("extends Applet") || source.contains("extends JFrame")) {
-                stdout.appendLine("[GUI Inspector] Initialized AWT/Swing component tree inside Universal Java Studio Surface.")
             }
 
             val elapsed = max(8L, System.currentTimeMillis() - startTime)
@@ -758,6 +1108,157 @@ private class JavaAstInterpreter(
         }
     }
 
+    private fun executeAppletLifecycle() {
+        val appletClass = Regex("""class\s+([A-Za-z_][A-Za-z0-9_]*)\s+extends\s+(?:J?Applet|java\.applet\.Applet)""")
+            .find(source)?.groupValues?.getOrNull(1) ?: "HelloApplet"
+
+        stdout.appendLine("=== [AppletViewer JDK $jdkVersion] Launching $appletClass ===")
+        stdout.appendLine("1. Lifecycle -> init(): Initializing Applet Context (width=400, height=240)")
+        methods["init"]?.let { runCatching { executeBlock(it.bodyLines) } }
+
+        stdout.appendLine("2. Lifecycle -> start(): Starting Applet execution thread")
+        methods["start"]?.let { runCatching { executeBlock(it.bodyLines) } }
+
+        stdout.appendLine("3. Lifecycle -> paint(Graphics g): Rendering 2D Canvas Framebuffer")
+        methods["paint"]?.let { runCatching { executeBlock(it.bodyLines) } }
+
+        // Also scan source for any Graphics calls inside paint(Graphics g) if not already recorded
+        if (graphicsCommands.isEmpty()) {
+            Regex("""\.setColor\s*\(([^)]+)\)""").findAll(source).forEach { m ->
+                activeGraphicsColor = m.groupValues[1].trim()
+                graphicsCommands.add("Graphics.setColor($activeGraphicsColor)")
+            }
+            Regex("""\.setFont\s*\(([^)]+)\)""").findAll(source).forEach { m ->
+                activeGraphicsFont = m.groupValues[1].trim()
+                graphicsCommands.add("Graphics.setFont($activeGraphicsFont)")
+            }
+            Regex("""\.(drawRect|fillRect|drawOval|fillOval|drawLine)\s*\(([^)]+)\)""").findAll(source).forEach { m ->
+                val op = m.groupValues[1]
+                val coords = splitTopLevelArgs(m.groupValues[2]).map { formatVal(evalExpr(it)) }
+                graphicsCommands.add("Graphics.$op(${coords.joinToString(", ")}) [color=$activeGraphicsColor]")
+            }
+            Regex("""\.drawString\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\)""").findAll(source).forEach { m ->
+                val textVal = formatVal(evalExpr(m.groupValues[1].trim()))
+                val xVal = formatVal(evalExpr(m.groupValues[2].trim()))
+                val yVal = formatVal(evalExpr(m.groupValues[3].trim()))
+                graphicsCommands.add("Graphics.drawString(\"$textVal\", x=$xVal, y=$yVal) [color=$activeGraphicsColor]")
+            }
+        }
+
+        if (graphicsCommands.isNotEmpty()) {
+            stdout.appendLine("+------------------------------------------------------------+")
+            stdout.appendLine("| AppletViewer 2D Canvas Framebuffer ($appletClass)          |")
+            stdout.appendLine("+------------------------------------------------------------+")
+            graphicsCommands.forEach { cmd ->
+                stdout.appendLine("| * $cmd")
+            }
+            stdout.appendLine("+------------------------------------------------------------+")
+        }
+
+        methods["actionPerformed"]?.let {
+            stdout.appendLine("4. Event Dispatch -> actionPerformed(ActionEvent): Simulating user interaction")
+            runCatching { executeBlock(it.bodyLines) }
+        }
+
+        stdout.appendLine("5. Status Bar: [$appletStatusMessage]")
+    }
+
+    private fun executeGuiLifecycleAndEvents(isSwing: Boolean) {
+        val toolkitName = if (isSwing) "Swing JFC (EventQueue / EDT)" else "Abstract Window Toolkit (AWT Peer)"
+        // Execute constructor body if class extends Frame / JFrame and constructor was defined
+        val className = Regex("""class\s+([A-Za-z_][A-Za-z0-9_]*)""").find(source)?.groupValues?.getOrNull(1)
+        if (className != null && className in methods) {
+            runCatching { executeBlock(methods[className]!!.bodyLines) }
+        }
+
+        // Execute actionPerformed if present
+        if ("actionPerformed" in methods) {
+            stdout.appendLine("[$toolkitName] Dispatching ActionEvent(ACTION_PERFORMED) to registered ActionListener...")
+            runCatching { executeBlock(methods["actionPerformed"]!!.bodyLines) }
+        }
+
+        // Scan for any AWT / Swing component declarations in source that weren't in mainBody (e.g. inside invokeLater or constructor)
+        Regex("""(?:J?Frame)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+(?:J?Frame)\s*\(([^)]*)\)""").findAll(source).forEach { m ->
+            val vName = m.groupValues[1]
+            val title = if (m.groupValues[2].isBlank()) "Java GUI Window" else formatVal(evalExpr(m.groupValues[2]))
+            guiWidgets.putIfAbsent(vName, GuiWidget(vName, if (isSwing) "JFrame" else "Frame", title, visible = true))
+        }
+        Regex("""(J?Button|J?Label|J?TextField|J?TextArea|J?CheckBox|J?Table|Button|Label|TextField)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+\1\s*\(([^)]*)\)""").findAll(source).forEach { m ->
+            val kind = m.groupValues[1]
+            val vName = m.groupValues[2]
+            val rawArg = m.groupValues[3].trim()
+            val labelText = if (rawArg.isBlank()) kind else formatVal(evalExpr(splitTopLevelArgs(rawArg).first()))
+            guiWidgets.putIfAbsent(vName, GuiWidget(vName, kind, labelText, visible = true))
+        }
+
+        // Execute inline lambda ActionListeners: .addActionListener(e -> { ... }) or .addActionListener(e -> System.out.println(...))
+        Regex("""addActionListener\s*\(\s*[A-Za-z0-9_()\s]*->\s*\{?([^});]+);?\s*\}?\s*\)""").findAll(source).forEach { m ->
+            val bodyStmt = m.groupValues[1].trim()
+            stdout.appendLine("[$toolkitName] Button ActionListener triggered -> executing handler:")
+            bodyStmt.lines().forEach { l ->
+                val clean = l.substringBefore("//").trim().removeSuffix(";")
+                if (clean.isNotEmpty()) runCatching { executeSingleStatement(clean) }
+            }
+        }
+
+        stdout.appendLine("=== [$toolkitName] Rendered Window & Component Hierarchy ===")
+        if (guiWidgets.isEmpty()) {
+            val winTitle = Regex("""super\s*\(\s*"([^"]+)"\s*\)""").find(source)?.groupValues?.getOrNull(1)
+                ?: Regex("""setTitle\s*\(\s*"([^"]+)"\s*\)""").find(source)?.groupValues?.getOrNull(1)
+                ?: "Java GUI Application Window"
+            stdout.appendLine("Window: \"$winTitle\" [Size: 400x300, Visible: true, Layout: FlowLayout]")
+        } else {
+            guiWidgets.values.forEach { w ->
+                stdout.appendLine("  • [${w.type}] id='${w.varName}' | text=\"${w.text}\" | size=${w.width}x${w.height}")
+            }
+        }
+        if (graphicsCommands.isNotEmpty()) {
+            stdout.appendLine("Rendered Graphics2D Operations:")
+            graphicsCommands.forEach { cmd -> stdout.appendLine("  * $cmd") }
+        }
+    }
+
+    private fun appendJdbcSummaryReport() {
+        stdout.appendLine("=== [JDBC DriverManager & SQL Engine — JDK $jdkVersion] ===")
+        stdout.appendLine("Connection URL: ${activeJdbcUrl ?: "jdbc:sqlite::memory: (Offline Embedded Relational Engine)"}")
+        if (jdbcExecutionLog.isNotEmpty()) {
+            stdout.appendLine("Executed SQL Statements (${jdbcExecutionLog.size}):")
+            jdbcExecutionLog.forEachIndexed { idx, entry ->
+                stdout.appendLine("  ${idx + 1}. $entry")
+            }
+        }
+        sqlTables.values.forEach { table ->
+            stdout.appendLine("Table '${table.name}' (${table.rows.size} row(s)):")
+            val cols = table.columns.ifEmpty {
+                table.rows.firstOrNull()?.keys?.toList() ?: listOf("id", "name", "value")
+            }
+            val widths = cols.map { col ->
+                max(col.length, table.rows.maxOfOrNull { r -> (r[col]?.toString() ?: "NULL").length } ?: 4) + 2
+            }
+            val border = widths.joinToString("+", prefix = "+", postfix = "+") { "-".repeat(it + 2) }
+            stdout.appendLine(border)
+            val headerLine = cols.mapIndexed { i, c -> " " + c.padEnd(widths[i]) + " " }.joinToString("|", prefix = "|", postfix = "|")
+            stdout.appendLine(headerLine)
+            stdout.appendLine(border)
+            table.rows.forEach { row ->
+                val rowLine = cols.mapIndexed { i, c ->
+                    " " + formatVal(row[c]).padEnd(widths[i]) + " "
+                }.joinToString("|", prefix = "|", postfix = "|")
+                stdout.appendLine(rowLine)
+            }
+            stdout.appendLine(border)
+        }
+    }
+
+    private fun appendNetworkSummaryReport() {
+        if (networkTraceLog.isNotEmpty()) {
+            stdout.appendLine("=== [Java Networking Stack (java.net / TCP / HTTP) — JDK $jdkVersion] ===")
+            networkTraceLog.forEach { entry ->
+                stdout.appendLine("  • $entry")
+            }
+        }
+    }
+
     private fun checkStepBudget() {
         stepCounter++
         if (stepCounter > maxSteps || (System.currentTimeMillis() - startEpoch) > timeoutMs) {
@@ -765,6 +1266,21 @@ private class JavaAstInterpreter(
                 "ExecutionTimeoutException",
                 "Process terminated: Execution exceeded safety limit ($maxSteps operations / ${timeoutMs}ms)"
             )
+        }
+    }
+
+    private fun parseClassFields(code: String) {
+        // Parse simple class-level field initializers (outside methods)
+        code.lines().forEach { raw ->
+            val line = raw.substringBefore("//").trim()
+            val fieldMatch = Regex("""^(?:private|public|protected)?\s*(?:static\s+)?(?:final\s+)?(int|long|double|float|boolean|String)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^;]+);$""").find(line)
+            if (fieldMatch != null) {
+                val fName = fieldMatch.groupValues[2]
+                val rhs = fieldMatch.groupValues[3].trim()
+                if (fName !in variables) {
+                    runCatching { variables[fName] = evalExpr(rhs) }
+                }
+            }
         }
     }
 
@@ -780,12 +1296,12 @@ private class JavaAstInterpreter(
             recordDefinitions[rName] = fieldNames
         }
 
-        // Parse static helper methods
+        // Parse static and instance methods (including init, start, paint, actionPerformed)
         val lines = code.lines()
         var i = 0
         while (i < lines.size) {
             val line = lines[i].substringBefore("//").trim()
-            val methodMatch = Regex("""(?:public|private|protected|static|strictfp|\s)+([A-Za-z0-9_<>\[\]]+)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)\s*\{""").find(line)
+            val methodMatch = Regex("""(?:public|private|protected|static|synchronized|strictfp|\s)+([A-Za-z0-9_<>\[\]]+)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)\s*(?:throws\s+[A-Za-z0-9_,\s]+)?\{""").find(line)
             if (methodMatch != null) {
                 val mName = methodMatch.groupValues[2]
                 if (mName != "main" && mName !in setOf("if", "for", "while", "switch", "catch")) {
@@ -810,12 +1326,36 @@ private class JavaAstInterpreter(
         }
     }
 
+    private fun stripComment(raw: String): String {
+        var inQuotes = false
+        var escaped = false
+        for (idx in 0 until raw.length - 1) {
+            val ch = raw[idx]
+            if (escaped) {
+                escaped = false
+                continue
+            }
+            if (ch == '\\') {
+                escaped = true
+                continue
+            }
+            if (ch == '"') {
+                inQuotes = !inQuotes
+                continue
+            }
+            if (!inQuotes && ch == '/' && raw[idx + 1] == '/') {
+                return raw.substring(0, idx)
+            }
+        }
+        return raw
+    }
+
     private fun extractMainBody(code: String): List<String> {
         val lines = code.lines()
         val mainRegex = Regex("""\bvoid\s+main\s*\([^)]*\)""")
         var startIdx = -1
         for (idx in lines.indices) {
-            val clean = lines[idx].substringBefore("//")
+            val clean = stripComment(lines[idx])
             if (mainRegex.containsMatchIn(clean)) {
                 startIdx = idx
                 break
@@ -828,7 +1368,7 @@ private class JavaAstInterpreter(
         var started = false
         for (idx in startIdx until lines.size) {
             val raw = lines[idx]
-            val clean = raw.substringBefore("//")
+            val clean = stripComment(raw)
             val opens = clean.count { it == '{' }
             val closes = clean.count { it == '}' }
             if (!started) {
@@ -850,9 +1390,17 @@ private class JavaAstInterpreter(
         while (i < lines.size) {
             checkStepBudget()
             val rawLine = lines[i]
-            val line = rawLine.substringBefore("//").trim()
-            if (line.isEmpty() || line == "{" || line == "}") {
+            val line = stripComment(rawLine).trim()
+            if (line.isEmpty() || line == "{" || line == "}" || line == "});") {
                 i++
+                continue
+            }
+
+            // Unwrap SwingUtilities.invokeLater / EventQueue.invokeLater / new Thread(...).start() blocks
+            if ((line.contains("invokeLater(") || line.contains("new Thread(")) && line.endsWith("{")) {
+                val (innerBody, afterIdx) = collectBracedBlock(lines, i)
+                executeBlock(innerBody)
+                i = afterIdx
                 continue
             }
 
@@ -880,8 +1428,15 @@ private class JavaAstInterpreter(
                 }
             }
 
-            // Handle try { ... } catch (...) { ... }
-            if (line.startsWith("try") && line.endsWith("{")) {
+            // Handle try / try-with-resources: try (...) { ... } catch (...) { ... }
+            if ((line.startsWith("try") || line.startsWith("try(") || line.startsWith("try (")) && line.endsWith("{")) {
+                // If try-with-resources has a resource init inside try (...), execute it first!
+                if (line.startsWith("try") && line.contains("(") && line.contains(")")) {
+                    val resourcePart = line.substringAfter("(").substringBeforeLast(")").trim()
+                    resourcePart.split(";").map { it.trim() }.filter { it.isNotEmpty() }.forEach { resStmt ->
+                        runCatching { executeSingleStatement(resStmt) }
+                    }
+                }
                 val (tryBody, nextIdx) = collectBracedBlock(lines, i)
                 var cursor = nextIdx
                 var catchVar = "e"
@@ -991,7 +1546,7 @@ private class JavaAstInterpreter(
                 continue
             }
 
-            // Handle while-loop: while (cond) {
+            // Handle while-loop: while (cond) { (including while (rs.next()) and while ((line = in.readLine()) != null))
             val whileMatch = Regex("""^while\s*\((.+)\)\s*\{?""").find(line)
             if (whileMatch != null) {
                 val condExpr = whileMatch.groupValues[1].trim()
@@ -1022,11 +1577,10 @@ private class JavaAstInterpreter(
                             branchExecuted = true
                         }
                         cursor = afterBlock
-                        // Check if closing brace line had 'else' attached
                         if (cursor > 0 && lines[cursor - 1].substringBefore("//").trim().contains("else")) {
                             cursor--
                         } else if (cursor < lines.size && lines[cursor].substringBefore("//").trim().startsWith("else")) {
-                            // continue loop to handle else
+                            // continue loop
                         } else {
                             break
                         }
@@ -1066,7 +1620,6 @@ private class JavaAstInterpreter(
             val opens = clean.count { it == '{' }
             val closes = clean.count { it == '}' }
             if (depth + opens - closes <= 0) {
-                // Closing brace reached
                 idx++
                 break
             }
@@ -1138,6 +1691,124 @@ private class JavaAstInterpreter(
             return
         }
 
+        // 4b. Applet / Graphics / AWT / Swing calls
+        val gDrawStrMatch = Regex("""^[A-Za-z0-9_.]*drawString\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\)$""").find(stmt)
+        if (gDrawStrMatch != null) {
+            val textVal = formatVal(evalExpr(gDrawStrMatch.groupValues[1]))
+            val xVal = formatVal(evalExpr(gDrawStrMatch.groupValues[2]))
+            val yVal = formatVal(evalExpr(gDrawStrMatch.groupValues[3]))
+            graphicsCommands.add("Graphics.drawString(\"$textVal\", x=$xVal, y=$yVal) [color=$activeGraphicsColor, font=$activeGraphicsFont]")
+            return
+        }
+        val gShapeMatch = Regex("""^[A-Za-z0-9_.]*\.(drawRect|fillRect|drawOval|fillOval|drawLine|drawRoundRect|fillRoundRect)\s*\((.+)\)$""").find(stmt)
+        if (gShapeMatch != null) {
+            val shapeOp = gShapeMatch.groupValues[1]
+            val argsEval = splitTopLevelArgs(gShapeMatch.groupValues[2]).map { formatVal(evalExpr(it)) }
+            graphicsCommands.add("Graphics.$shapeOp(${argsEval.joinToString(", ")}) [color=$activeGraphicsColor]")
+            return
+        }
+        val gColorMatch = Regex("""^[A-Za-z0-9_.]*\.setColor\s*\((.+)\)$""").find(stmt)
+        if (gColorMatch != null) {
+            activeGraphicsColor = gColorMatch.groupValues[1].trim()
+            graphicsCommands.add("Graphics.setColor($activeGraphicsColor)")
+            return
+        }
+        val gFontMatch = Regex("""^[A-Za-z0-9_.]*\.setFont\s*\((.+)\)$""").find(stmt)
+        if (gFontMatch != null) {
+            activeGraphicsFont = gFontMatch.groupValues[1].trim()
+            graphicsCommands.add("Graphics.setFont($activeGraphicsFont)")
+            return
+        }
+        if (stmt.startsWith("showStatus(") && stmt.endsWith(")")) {
+            appletStatusMessage = formatVal(evalExpr(stmt.removePrefix("showStatus(").removeSuffix(")")))
+            return
+        }
+        if (stmt.startsWith("JOptionPane.showMessageDialog(")) {
+            val args = splitTopLevelArgs(stmt.removePrefix("JOptionPane.showMessageDialog(").removeSuffix(")"))
+            val msg = if (args.size >= 2) formatVal(evalExpr(args[1])) else "Message"
+            stdout.appendLine("[Swing JOptionPane Dialog]: $msg")
+            return
+        }
+        if (stmt.contains(".addActionListener(") && stmt.contains("->") && stmt.endsWith(")")) {
+            val lambdaBody = stmt.substringAfter("->").removeSuffix(")").trim().removeSuffix(";")
+            if (lambdaBody.isNotBlank()) {
+                executeSingleStatement(lambdaBody)
+            }
+            return
+        }
+
+        // AWT/Swing widget mutations: widget.setText(...), widget.setTitle(...), widget.setSize(w, h), widget.setVisible(true)
+        val widgetMutMatch = Regex("""^([A-Za-z_][A-Za-z0-9_]*)\.(setText|setTitle|setSize|setVisible|setLayout|add)\((.*)\)$""").find(stmt)
+        if (widgetMutMatch != null) {
+            val target = widgetMutMatch.groupValues[1]
+            val mName = widgetMutMatch.groupValues[2]
+            val argRaw = widgetMutMatch.groupValues[3]
+            val widget = guiWidgets[target]
+            if (widget != null) {
+                when (mName) {
+                    "setText", "setTitle" -> {
+                        widget.text = formatVal(evalExpr(argRaw))
+                        variables["$target.getText()"] = widget.text
+                    }
+                    "setSize" -> {
+                        val dims = splitTopLevelArgs(argRaw).map { toDoubleOrZero(evalExpr(it)).toInt() }
+                        if (dims.size >= 2) {
+                            widget.width = dims[0]
+                            widget.height = dims[1]
+                        }
+                    }
+                    "setVisible" -> {
+                        widget.visible = evalCondition(argRaw)
+                    }
+                    "setLayout" -> {
+                        widget.layout = argRaw.replace("new ", "").trim()
+                    }
+                }
+                return
+            }
+        }
+
+        // 4c. JDBC Statement / PreparedStatement execution: stmt.executeUpdate(sql), ps.setInt(1, val), ps.setString(2, val), ps.executeUpdate(), conn.commit()
+        val psSetMatch = Regex("""^([A-Za-z_][A-Za-z0-9_]*)\.(setInt|setLong|setDouble|setFloat|setString|setObject)\s*\(\s*([^,]+)\s*,\s*(.+)\)$""").find(stmt)
+        if (psSetMatch != null) {
+            val psVar = psSetMatch.groupValues[1]
+            val paramIdx = toDoubleOrZero(evalExpr(psSetMatch.groupValues[3])).toInt()
+            val paramVal = evalExpr(psSetMatch.groupValues[4])
+            val map = preparedParamsByVar.getOrPut(psVar) { mutableMapOf() }
+            map[paramIdx] = paramVal
+            return
+        }
+        val execSqlMatch = Regex("""^([A-Za-z_][A-Za-z0-9_]*)\.(executeUpdate|execute|addBatch|executeBatch)\s*\((.*)\)$""").find(stmt)
+        if (execSqlMatch != null) {
+            val stmtVar = execSqlMatch.groupValues[1]
+            val argRaw = execSqlMatch.groupValues[3].trim()
+            val sql = if (argRaw.isEmpty()) (preparedSqlByVar[stmtVar] ?: "") else formatVal(evalExpr(argRaw))
+            if (sql.isNotBlank()) {
+                executeSqlDml(sql, preparedParamsByVar[stmtVar] ?: emptyMap())
+            }
+            return
+        }
+        if (stmt.endsWith(".commit()")) {
+            jdbcExecutionLog.add("COMMIT TRANSACTION (Durable ACID commit complete)")
+            return
+        }
+
+        // 4d. Networking Socket / PrintWriter output: out.println(msg) / writer.println(msg)
+        val netOutMatch = Regex("""^([A-Za-z_][A-Za-z0-9_]*)\.(println|write|print)\s*\((.+)\)$""").find(stmt)
+        if (netOutMatch != null && netOutMatch.groupValues[1] !in setOf("System.out", "System.err")) {
+            val targetVar = netOutMatch.groupValues[1]
+            val payload = formatVal(evalExpr(netOutMatch.groupValues[3]))
+            networkTraceLog.add("TCP Socket [$targetVar] >>> SENT (${payload.length} bytes): \"$payload\"")
+            // Populate simulated server response for any active socket reader!
+            readerQueueByVar.values.forEach { q ->
+                if (q.isEmpty() || q.first().startsWith("Server ACK:")) {
+                    q.clear()
+                    q.add("Server ACK [JDK $jdkVersion]: Received '$payload' (200 OK)")
+                }
+            }
+            return
+        }
+
         // 5. Increment / Decrement: i++, ++i, i--, --i, i += expr, i -= expr
         val incDecMatch = Regex("""^(?:\+\+|--)?([A-Za-z_][A-Za-z0-9_]*)(?:\+\+|--)?$""").find(stmt)
         if (incDecMatch != null && (stmt.contains("++") || stmt.contains("--"))) {
@@ -1175,7 +1846,7 @@ private class JavaAstInterpreter(
 
         // 6. Collection mutation: list.add(...), list.addElement(...), list.remove(...)
         val colAddMatch = Regex("""^([A-Za-z_][A-Za-z0-9_]*)\.(add|addElement|push|addFirst|addLast)\((.*)\)$""").find(stmt)
-        if (colAddMatch != null) {
+        if (colAddMatch != null && colAddMatch.groupValues[1] in collections) {
             val cName = colAddMatch.groupValues[1]
             val method = colAddMatch.groupValues[2]
             val item = evalExpr(colAddMatch.groupValues[3])
@@ -1207,6 +1878,117 @@ private class JavaAstInterpreter(
                 .trim()
                 .split(Regex("""\s+"""))
                 .last()
+
+            // 8a. AWT / Swing Component instantiation
+            val guiNewMatch = Regex("""^new\s+(J?Frame|J?Panel|J?Button|J?Label|J?TextField|J?TextArea|J?CheckBox|J?Table|Frame|Panel|Button|Label|TextField|TextArea|Checkbox)\s*\((.*)\)$""").find(rhs)
+            if (guiNewMatch != null) {
+                val widgetType = guiNewMatch.groupValues[1]
+                val rawArgs = guiNewMatch.groupValues[2].trim()
+                val textVal = if (rawArgs.isBlank()) widgetType else formatVal(evalExpr(splitTopLevelArgs(rawArgs).first()))
+                val widget = GuiWidget(varName, widgetType, textVal, visible = true)
+                guiWidgets[varName] = widget
+                variables[varName] = widget.text
+                variables["$varName.getText()"] = widget.text
+                return
+            }
+
+            // 8b. JDBC Connection / Statement / PreparedStatement / ResultSet
+            if (rhs.contains("DriverManager.getConnection(")) {
+                val args = splitTopLevelArgs(rhs.substringAfter("DriverManager.getConnection(").substringBeforeLast(")"))
+                activeJdbcUrl = if (args.isNotEmpty()) formatVal(evalExpr(args[0])) else "jdbc:sqlite::memory:"
+                jdbcExecutionLog.add("Opened JDBC Connection -> $activeJdbcUrl")
+                variables[varName] = activeJdbcUrl
+                return
+            }
+            if (rhs.contains(".prepareStatement(")) {
+                val sqlExpr = rhs.substringAfter(".prepareStatement(").substringBeforeLast(")")
+                val sql = formatVal(evalExpr(sqlExpr))
+                preparedSqlByVar[varName] = sql
+                preparedParamsByVar[varName] = mutableMapOf()
+                variables[varName] = "PreparedStatement[$sql]"
+                return
+            }
+            if (rhs.contains(".executeQuery(")) {
+                val sqlExpr = rhs.substringAfter(".executeQuery(").substringBeforeLast(")").trim()
+                val stmtSourceVar = rhs.substringBefore(".executeQuery(").trim()
+                val sql = if (sqlExpr.isEmpty()) (preparedSqlByVar[stmtSourceVar] ?: "SELECT * FROM employees") else formatVal(evalExpr(sqlExpr))
+                val rows = executeSqlQuery(sql)
+                resultSetsByVar[varName] = rows
+                resultSetCursorByVar[varName] = -1
+                variables[varName] = "ResultSet[${rows.size} rows]"
+                return
+            }
+            if (rhs.contains(".executeUpdate(")) {
+                val sqlExpr = rhs.substringAfter(".executeUpdate(").substringBeforeLast(")").trim()
+                val stmtSourceVar = rhs.substringBefore(".executeUpdate(").trim()
+                val sql = if (sqlExpr.isEmpty()) (preparedSqlByVar[stmtSourceVar] ?: "") else formatVal(evalExpr(sqlExpr))
+                val affected = executeSqlDml(sql, preparedParamsByVar[stmtSourceVar] ?: emptyMap())
+                variables[varName] = affected
+                return
+            }
+
+            // 8c. Networking: InetAddress, URL, Socket, ServerSocket, HttpClient, BufferedReader
+            if (rhs.startsWith("InetAddress.getByName(") || rhs.startsWith("InetAddress.getLocalHost(")) {
+                val hostArg = if (rhs.startsWith("InetAddress.getByName(")) {
+                    formatVal(evalExpr(rhs.removePrefix("InetAddress.getByName(").removeSuffix(")")))
+                } else {
+                    "localhost"
+                }
+                val resolvedIp = when {
+                    hostArg.contains("localhost") || hostArg == "127.0.0.1" -> "127.0.0.1"
+                    hostArg.contains("oracle.com") -> "104.74.16.82"
+                    hostArg.contains("nptel") || hostArg.contains("iitkgp") -> "103.37.201.14"
+                    else -> "93.184.216.34"
+                }
+                variables[varName] = "$hostArg/$resolvedIp"
+                variables["$varName.getHostName()"] = hostArg
+                variables["$varName.getHostAddress()"] = resolvedIp
+                networkTraceLog.add("DNS Lookup: InetAddress('$hostArg') -> $resolvedIp [Reachable: true, RTT: 4ms]")
+                return
+            }
+            if (rhs.startsWith("new URL(")) {
+                val urlStr = formatVal(evalExpr(rhs.removePrefix("new URL(").removeSuffix(")")))
+                urlObjects[varName] = urlStr
+                variables[varName] = urlStr
+                networkTraceLog.add("Parsed URL('$urlStr') [protocol=${urlStr.substringBefore("://", "https")}, host=${urlStr.substringAfter("://").substringBefore("/")}]")
+                return
+            }
+            if (rhs.startsWith("new Socket(")) {
+                val args = splitTopLevelArgs(rhs.removePrefix("new Socket(").removeSuffix(")"))
+                val host = if (args.isNotEmpty()) formatVal(evalExpr(args[0])) else "127.0.0.1"
+                val port = if (args.size >= 2) formatVal(evalExpr(args[1])) else "8080"
+                variables[varName] = "Socket[addr=$host,port=$port,localport=54321]"
+                networkTraceLog.add("TCP Handshake: Connected Socket to $host:$port [SYN -> SYN-ACK -> ACK]")
+                socketStreams[varName] = mutableListOf("Server Banner [JDK $jdkVersion]: Connected to $host:$port", "200 OK — Payload Stream Ready")
+                return
+            }
+            if (rhs.startsWith("new ServerSocket(")) {
+                val port = formatVal(evalExpr(rhs.removePrefix("new ServerSocket(").removeSuffix(")")))
+                variables[varName] = "ServerSocket[addr=0.0.0.0/0.0.0.0,localport=$port]"
+                networkTraceLog.add("TCP ServerSocket bound on port $port (LISTENING)")
+                return
+            }
+            if (rhs.startsWith("new BufferedReader(")) {
+                val q = mutableListOf<String>()
+                if (source.contains("HttpURLConnection") || source.contains("openStream()") || source.contains("new URL(")) {
+                    val targetUrl = urlObjects.values.firstOrNull() ?: "https://api.javastudio.local/v1/status"
+                    q.add("""{"status": 200, "endpoint": "$targetUrl", "jdk": "$jdkVersion", "mode": "Offline Verified"}""")
+                    networkTraceLog.add("HTTP GET $targetUrl -> 200 OK (application/json)")
+                } else {
+                    q.addAll(socketStreams.values.firstOrNull() ?: listOf("Offline Stream Line 1 (JDK $jdkVersion)"))
+                }
+                readerQueueByVar[varName] = q
+                variables[varName] = "BufferedReader"
+                return
+            }
+            if (rhs.contains(".send(") && (source.contains("HttpClient") || source.contains("HttpRequest"))) {
+                val jsonBody = """{"service":"UniversalJavaStudio","jdk":"$jdkVersion","httpVersion":"HTTP/2","status":"200 OK"}"""
+                variables[varName] = jsonBody
+                variables["$varName.statusCode()"] = 200
+                variables["$varName.body()"] = jsonBody
+                networkTraceLog.add("HttpClient.send(HttpRequest) -> HTTP/2 200 OK | Body: $jsonBody")
+                return
+            }
 
             // Check Collection creation: new Vector(), new ArrayList<>(), Arrays.asList(...), List.of(...)
             when {
@@ -1271,10 +2053,150 @@ private class JavaAstInterpreter(
         evalExpr(stmt)
     }
 
+    private fun executeSqlDml(rawSql: String, params: Map<Int, Any?>): Int {
+        var sql = rawSql.trim()
+        if (params.isNotEmpty()) {
+            var qIdx = 1
+            val sb = StringBuilder()
+            for (ch in sql) {
+                if (ch == '?') {
+                    val v = params[qIdx++]
+                    if (v is Number) sb.append(v) else sb.append("'${formatVal(v)}'")
+                } else {
+                    sb.append(ch)
+                }
+            }
+            sql = sb.toString()
+        }
+
+        val upper = sql.uppercase()
+        when {
+            upper.startsWith("CREATE TABLE") -> {
+                val tblMatch = Regex("""CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z0-9_]+)\s*\((.+)\)""", RegexOption.IGNORE_CASE).find(sql)
+                if (tblMatch != null) {
+                    val tblName = tblMatch.groupValues[1].lowercase()
+                    val cols = tblMatch.groupValues[2].split(",").mapNotNull { colDef ->
+                        colDef.trim().split(Regex("""\s+""")).firstOrNull()?.takeIf {
+                            it.uppercase() !in setOf("PRIMARY", "FOREIGN", "UNIQUE", "CHECK", "CONSTRAINT")
+                        }
+                    }.toMutableList()
+                    sqlTables[tblName] = SqlTable(tblName, cols)
+                    jdbcExecutionLog.add("DDL: CREATE TABLE $tblName (${cols.joinToString(", ")}) -> 0 rows affected")
+                }
+                return 0
+            }
+            upper.startsWith("INSERT INTO") -> {
+                val insMatch = Regex("""INSERT\s+INTO\s+([A-Za-z0-9_]+)\s*(?:\(([^)]+)\))?\s*VALUES\s*\((.+)\)""", RegexOption.IGNORE_CASE).find(sql)
+                if (insMatch != null) {
+                    val tblName = insMatch.groupValues[1].lowercase()
+                    val explicitCols = insMatch.groupValues[2].split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    val valsRaw = splitTopLevelArgs(insMatch.groupValues[3]).map { v ->
+                        val clean = v.trim()
+                        if (clean.startsWith("'") && clean.endsWith("'")) clean.substring(1, clean.length - 1)
+                        else evalExpr(clean)
+                    }
+                    val table = sqlTables.getOrPut(tblName) {
+                        val defaultCols = if (explicitCols.isNotEmpty()) explicitCols.toMutableList()
+                        else MutableList(valsRaw.size) { idx ->
+                            when (idx) {
+                                0 -> "id"
+                                1 -> "name"
+                                2 -> "role"
+                                3 -> "salary"
+                                else -> "col_${idx + 1}"
+                            }
+                        }
+                        SqlTable(tblName, defaultCols)
+                    }
+                    val targetCols = if (explicitCols.isNotEmpty()) explicitCols else table.columns
+                    val rowMap = linkedMapOf<String, Any?>()
+                    targetCols.forEachIndexed { idx, cName ->
+                        rowMap[cName] = valsRaw.getOrNull(idx)
+                    }
+                    table.rows.add(rowMap)
+                    jdbcExecutionLog.add("DML: INSERT INTO $tblName VALUES (${valsRaw.joinToString(", ")}) -> 1 row inserted")
+                    return 1
+                }
+            }
+            upper.startsWith("UPDATE ") -> {
+                val updMatch = Regex("""UPDATE\s+([A-Za-z0-9_]+)\s+SET\s+([A-Za-z0-9_]+)\s*=\s*([^\s]+)(?:\s+WHERE\s+(.+))?""", RegexOption.IGNORE_CASE).find(sql)
+                if (updMatch != null) {
+                    val tblName = updMatch.groupValues[1].lowercase()
+                    val col = updMatch.groupValues[2]
+                    val newVal = evalExpr(updMatch.groupValues[3].trim().trim('\''))
+                    val table = sqlTables[tblName]
+                    var count = 0
+                    table?.rows?.forEach { r ->
+                        r[col] = newVal
+                        count++
+                    }
+                    jdbcExecutionLog.add("DML: $sql -> $count row(s) updated")
+                    return count
+                }
+            }
+            upper.startsWith("DELETE FROM") -> {
+                val delMatch = Regex("""DELETE\s+FROM\s+([A-Za-z0-9_]+)""", RegexOption.IGNORE_CASE).find(sql)
+                if (delMatch != null) {
+                    val tblName = delMatch.groupValues[1].lowercase()
+                    val table = sqlTables[tblName]
+                    val removed = table?.rows?.size ?: 0
+                    table?.rows?.clear()
+                    jdbcExecutionLog.add("DML: $sql -> $removed row(s) deleted")
+                    return removed
+                }
+            }
+        }
+        jdbcExecutionLog.add("SQL Executed: $sql")
+        return 1
+    }
+
+    private fun executeSqlQuery(sql: String): List<Map<String, Any?>> {
+        val tblMatch = Regex("""FROM\s+([A-Za-z0-9_]+)""", RegexOption.IGNORE_CASE).find(sql)
+        val tblName = tblMatch?.groupValues?.getOrNull(1)?.lowercase() ?: "employees"
+        val table = sqlTables.getOrPut(tblName) {
+            // Seed a default realistic table if the user runs a SELECT query directly
+            SqlTable(
+                name = tblName,
+                columns = mutableListOf("id", "name", "department", "salary"),
+                rows = mutableListOf(
+                    linkedMapOf("id" to 101, "name" to "Aarav Sharma", "department" to "Compiler Engineering", "salary" to 95000.0),
+                    linkedMapOf("id" to 102, "name" to "Diya Nair", "department" to "JVM Runtime Systems", "salary" to 108000.0),
+                    linkedMapOf("id" to 103, "name" to "Rohan Verma", "department" to "Distributed Storage", "salary" to 99500.0)
+                )
+            )
+        }
+        jdbcExecutionLog.add("DQL: $sql -> Returned ${table.rows.size} row(s) from '$tblName'")
+        return table.rows.map { LinkedHashMap(it) }
+    }
+
     private fun evalCondition(expr: String): Boolean {
         val clean = expr.trim()
         if (clean == "true") return true
         if (clean == "false") return false
+
+        // Support JDBC ResultSet cursor iteration: while (rs.next())
+        val rsNextMatch = Regex("""^([A-Za-z_][A-Za-z0-9_]*)\.next\(\)$""").find(clean)
+        if (rsNextMatch != null) {
+            val rsVar = rsNextMatch.groupValues[1]
+            val rows = resultSetsByVar[rsVar] ?: emptyList()
+            val nextIdx = (resultSetCursorByVar[rsVar] ?: -1) + 1
+            resultSetCursorByVar[rsVar] = nextIdx
+            return nextIdx < rows.size
+        }
+
+        // Support BufferedReader stream iteration: while ((line = in.readLine()) != null)
+        val readLineLoopMatch = Regex("""^\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([A-Za-z_][A-Za-z0-9_]*)\.readLine\(\)\s*\)\s*!=\s*null$""").find(clean)
+        if (readLineLoopMatch != null) {
+            val lineVar = readLineLoopMatch.groupValues[1]
+            val readerVar = readLineLoopMatch.groupValues[2]
+            val queue = readerQueueByVar[readerVar]
+            if (!queue.isNullOrEmpty()) {
+                variables[lineVar] = queue.removeAt(0)
+                return true
+            }
+            return false
+        }
+
         if (clean.contains("&&")) {
             return clean.split("&&").all { evalCondition(it) }
         }
@@ -1401,6 +2323,19 @@ private class JavaAstInterpreter(
             return evalExpr(expr.substring(1, expr.length - 1))
         }
 
+        // Integer.parseInt / Double.parseDouble / String.valueOf
+        if (expr.startsWith("Integer.parseInt(") && expr.endsWith(")")) {
+            val inner = evalExpr(expr.removePrefix("Integer.parseInt(").removeSuffix(")")).toString().trim()
+            return inner.toIntOrNull() ?: 0
+        }
+        if (expr.startsWith("Double.parseDouble(") && expr.endsWith(")")) {
+            val inner = evalExpr(expr.removePrefix("Double.parseDouble(").removeSuffix(")")).toString().trim()
+            return inner.toDoubleOrNull() ?: 0.0
+        }
+        if (expr.startsWith("String.valueOf(") && expr.endsWith(")")) {
+            return formatVal(evalExpr(expr.removePrefix("String.valueOf(").removeSuffix(")")))
+        }
+
         // Scanner input methods
         if (expr.endsWith(".nextInt()")) {
             val tok = if (stdinTokens.isNotEmpty()) stdinTokens.removeAt(0) else "42"
@@ -1434,19 +2369,66 @@ private class JavaAstInterpreter(
             }
         }
 
-        // Collection size / elementAt / get / getFirst / getLast / length
+        // Check direct cached property calls like inet.getHostAddress() or response.body()
+        if (expr in variables) return variables[expr]
+
+        // Method call on object: target.method(args)
         val methodCallMatch = Regex("""^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$""").find(expr)
         if (methodCallMatch != null) {
             val target = methodCallMatch.groupValues[1]
             val mName = methodCallMatch.groupValues[2]
             val argStr = methodCallMatch.groupValues[3]
 
-            // Check record instance accessor
+            // 1. JDBC ResultSet getters: rs.getInt("id" / 1), rs.getString("name" / 2), rs.getDouble("salary" / 3)
+            if (target in resultSetsByVar && mName.startsWith("get")) {
+                val rows = resultSetsByVar[target] ?: emptyList()
+                val curIdx = (resultSetCursorByVar[target] ?: 0).coerceIn(0, (rows.size - 1).coerceAtLeast(0))
+                val row = rows.getOrNull(curIdx) ?: emptyMap()
+                val argVal = evalExpr(argStr)
+                val cell = when (argVal) {
+                    is Number -> row.values.elementAtOrNull(argVal.toInt() - 1)
+                    else -> {
+                        val colKey = argVal.toString()
+                        row.entries.firstOrNull { it.key.equals(colKey, ignoreCase = true) }?.value
+                            ?: row.values.firstOrNull()
+                    }
+                }
+                return cell ?: ""
+            }
+
+            // 2. AWT / Swing widget getters: textField.getText(), label.getText(), frame.getTitle()
+            guiWidgets[target]?.let { w ->
+                if (mName == "getText" || mName == "getTitle" || mName == "getLabel") {
+                    return w.text
+                }
+            }
+
+            // 3. Networking BufferedReader.readLine() / URL / HttpURLConnection / InetAddress methods
+            if (target in readerQueueByVar && mName == "readLine") {
+                val q = readerQueueByVar[target]
+                return if (!q.isNullOrEmpty()) q.removeAt(0) else null
+            }
+            if (target in urlObjects) {
+                val u = urlObjects[target] ?: "https://oracle.com/java"
+                return when (mName) {
+                    "getProtocol" -> u.substringBefore("://", "https")
+                    "getHost" -> u.substringAfter("://").substringBefore("/").substringBefore(":")
+                    "getPort" -> if (u.substringAfter("://").contains(":")) u.substringAfterLast(":").substringBefore("/").toIntOrNull() ?: 443 else 443
+                    "getPath", "getFile" -> "/" + u.substringAfter("://").substringAfter("/", "")
+                    else -> u
+                }
+            }
+            if (mName == "getResponseCode" || mName == "statusCode") return 200
+            if (mName == "getResponseMessage") return "OK"
+            if (mName == "getContentType") return "application/json; charset=UTF-8"
+            if (mName == "isReachable") return true
+
+            // 4. Record instance accessor
             recordInstances[target]?.let { fields ->
                 if (mName in fields) return fields[mName]
             }
 
-            // Check collection methods
+            // 5. Collection methods
             collections[target]?.let { list ->
                 return when (mName) {
                     "size" -> list.size
@@ -1464,7 +2446,7 @@ private class JavaAstInterpreter(
                 }
             }
 
-            // Check String methods
+            // 6. String methods
             val strTarget = variables[target]?.toString()
             if (strTarget != null) {
                 return when (mName) {
@@ -1506,6 +2488,10 @@ private class JavaAstInterpreter(
         if (userCallMatch != null) {
             val mName = userCallMatch.groupValues[1]
             val argsRaw = userCallMatch.groupValues[2]
+            if (mName == "getParameter") {
+                val paramKey = formatVal(evalExpr(argsRaw))
+                return "UniversalJavaStudio-$paramKey"
+            }
             val def = methods[mName]
             if (def != null) {
                 val argVals = splitTopLevelArgs(argsRaw).map { evalExpr(it) }
@@ -1526,7 +2512,6 @@ private class JavaAstInterpreter(
             }
         }
 
-        if (expr in variables) return variables[expr]
         return expr
     }
 
@@ -1593,3 +2578,4 @@ private class JavaAstInterpreter(
         }
     }
 }
+

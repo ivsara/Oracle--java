@@ -528,6 +528,7 @@ class JavaStudioViewModel @JvmOverloads constructor(
             _openFilesMap.value = currentMap
 
             val jdk = resolveJdkEntity(_activeJdkVersion.value)
+            val mainClass = _activeFileName.value.removeSuffix(".java")
             val result = withContext(Dispatchers.Default) {
                 JavaCompilerAndExecutionEngine.compileProject(
                     jdk = jdk,
@@ -536,11 +537,23 @@ class JavaStudioViewModel @JvmOverloads constructor(
                 )
             }
             _lastCompilationResult.value = result
-            _activeConsoleTab.value = 1 // Show Compiler Output
-            _statusBannerMessage.value = if (result.success) {
-                "Compilation Succeeded (JDK ${jdk.jdkVersion} -> Bytecode v${jdk.bytecodeMajorVersion}.0)"
+
+            if (result.success) {
+                val execResult = withContext(Dispatchers.Default) {
+                    JavaCompilerAndExecutionEngine.executeProgram(
+                        jdk = jdk,
+                        files = currentMap,
+                        mainClass = mainClass,
+                        stdinInput = _stdinInput.value,
+                        runtimeArgs = _runtimeArgs.value
+                    )
+                }
+                _lastExecutionResult.value = execResult
+                _activeConsoleTab.value = 0 // Show Program Output + Compilation Status together
+                _statusBannerMessage.value = "Compiled & Executed $mainClass (JDK ${jdk.jdkVersion} -> Bytecode v${jdk.bytecodeMajorVersion}.0)"
             } else {
-                "Compilation Failed (${result.diagnostics.count { it.severity == "ERROR" }} error(s) for JDK ${jdk.jdkVersion})"
+                _activeConsoleTab.value = 1 // Show Compiler Errors
+                _statusBannerMessage.value = "Compilation Failed (${result.diagnostics.count { it.severity == "ERROR" }} error(s) for JDK ${jdk.jdkVersion})"
             }
 
             repository.recordExecution(
@@ -551,7 +564,8 @@ class JavaStudioViewModel @JvmOverloads constructor(
                     actionType = "COMPILE",
                     commandUsed = result.compilerCommand,
                     status = if (result.success) "SUCCESS" else "COMPILE_ERROR",
-                    outputSummary = result.rawOutput.lines().lastOrNull() ?: "",
+                    outputSummary = _lastExecutionResult.value?.stdout?.lines()?.firstOrNull()
+                        ?: result.rawOutput.lines().lastOrNull() ?: "",
                     executionTimeMs = result.durationMs
                 )
             )

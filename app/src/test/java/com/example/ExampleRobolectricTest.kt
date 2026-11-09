@@ -110,6 +110,74 @@ class ExampleRobolectricTest {
         val restoredFiles = JdkCatalogAndSpecifications.deserializeProjectFiles(persisted.filesContentSerialized)
         assertEquals(autoSavedCode, restoredFiles["HelloWorld.java"])
     }
+
+    @Test
+    fun `compiler and interpreter execute Applet, AWT, Swing, JDBC SQL, and Networking programs with full runtime output`() {
+        val showcases = com.example.core.JavaCompilerAndExecutionEngine.getSubsystemShowcaseTemplates()
+        assertEquals(5, showcases.size)
+
+        // 1. Applet
+        val appletProg = showcases.first { it.id == "subsystem_1" }
+        val appletJdk = com.example.core.JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(appletProg.targetJdk)
+        val appletRes = com.example.core.JavaCompilerAndExecutionEngine.executeProgram(
+            jdk = appletJdk,
+            files = mapOf("HelloApplet.java" to appletProg.sourceCode),
+            mainClass = "HelloApplet"
+        )
+        assertTrue(appletRes.success)
+        assertTrue(appletRes.stdout.contains("AppletViewer 2D Canvas Framebuffer"))
+        assertTrue(appletRes.stdout.contains("drawString"))
+
+        // 2. AWT
+        val awtProg = showcases.first { it.id == "subsystem_2" }
+        val awtJdk = com.example.core.JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(awtProg.targetJdk)
+        val awtRes = com.example.core.JavaCompilerAndExecutionEngine.executeProgram(
+            jdk = awtJdk,
+            files = mapOf("AwtCalculatorApp.java" to awtProg.sourceCode),
+            mainClass = "AwtCalculatorApp"
+        )
+        assertTrue(awtRes.success)
+        assertTrue(awtRes.stdout.contains("AWT ActionEvent -> Clicked Compute Sum: 45 + 55 = 100"))
+        assertTrue(awtRes.stdout.contains("Abstract Window Toolkit (AWT Peer)"))
+
+        // 3. Swing
+        val swingProg = showcases.first { it.id == "subsystem_3" }
+        val swingJdk = com.example.core.JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(swingProg.targetJdk)
+        val swingRes = com.example.core.JavaCompilerAndExecutionEngine.executeProgram(
+            jdk = swingJdk,
+            files = mapOf("SwingStudentPortal.java" to swingProg.sourceCode),
+            mainClass = "SwingStudentPortal"
+        )
+        assertTrue(swingRes.success)
+        assertTrue(swingRes.stdout.contains("Swing EDT ActionEvent -> Verified: Aarav Sharma"))
+        assertTrue(swingRes.stdout.contains("Swing JFC (EventQueue / EDT)"))
+
+        // 4. JDBC SQL
+        val jdbcProg = showcases.first { it.id == "subsystem_4" }
+        val jdbcJdk = com.example.core.JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(jdbcProg.targetJdk)
+        val jdbcRes = com.example.core.JavaCompilerAndExecutionEngine.executeProgram(
+            jdk = jdbcJdk,
+            files = mapOf("JdbcEmployeeDb.java" to jdbcProg.sourceCode),
+            mainClass = "JdbcEmployeeDb"
+        )
+        assertTrue(jdbcRes.success)
+        assertTrue(jdbcRes.stdout.contains("Dr. Debasis Samanta"))
+        assertTrue(jdbcRes.stdout.contains("James Gosling"))
+        assertTrue(jdbcRes.stdout.contains("JDBC DriverManager & SQL Engine"))
+
+        // 5. Networking
+        val netProg = showcases.first { it.id == "subsystem_5" }
+        val netJdk = com.example.core.JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(netProg.targetJdk)
+        val netRes = com.example.core.JavaCompilerAndExecutionEngine.executeProgram(
+            jdk = netJdk,
+            files = mapOf("NetworkSocketHttpLab.java" to netProg.sourceCode),
+            mainClass = "NetworkSocketHttpLab"
+        )
+        assertTrue(netRes.success)
+        assertTrue(netRes.stdout.contains("DNS Resolved:"))
+        assertTrue(netRes.stdout.contains("TCP Socket Reply:"))
+        assertTrue(netRes.stdout.contains("Java Networking Stack"))
+    }
 }
 
 private class InMemoryJavaStudioDao : JavaStudioDao {

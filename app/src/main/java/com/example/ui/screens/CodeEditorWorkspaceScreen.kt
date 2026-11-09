@@ -511,6 +511,19 @@ fun CodeEditorWorkspaceScreen(
                         label = { Text("Test Syntax Errors (Missing ';' & '{')") },
                         modifier = Modifier.testTag("preset_syntax_error_btn")
                     )
+                    val subsystemPresets = remember { JavaCompilerAndExecutionEngine.getSubsystemShowcaseTemplates() }
+                    subsystemPresets.forEach { preset ->
+                        FilterChip(
+                            selected = false,
+                            onClick = {
+                                onSwitchJdkVersion(preset.targetJdk)
+                                pushCodeUpdate(preset.sourceCode)
+                                onSelectConsoleTab(0)
+                            },
+                            label = { Text(preset.title.substringBefore(" (")) },
+                            modifier = Modifier.testTag("preset_${preset.id}_btn")
+                        )
+                    }
                 }
 
                 // Real-World IDE Developer Edit & Snippet Toolbar (Undo, Redo, Live Snippets)
@@ -804,7 +817,15 @@ fun CodeEditorWorkspaceScreen(
                 ) {
                     when (activeConsoleTab.coerceIn(0, consoleTabs.lastIndex)) {
                         0 -> {
-                            // Program Output (auto-evaluates current program if executionResult is null)
+                            // Program Output + Compiler Status + Visual Subsystem Inspector (Applet / AWT / Swing / JDBC / Networking)
+                            val effectiveComp = compilationResult ?: remember(editorCode, activeJdkVersion, compilerFlags) {
+                                val jdk = JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(activeJdkVersion)
+                                JavaCompilerAndExecutionEngine.compileProject(
+                                    jdk = jdk,
+                                    files = openFiles.ifEmpty { mapOf(activeFileName to editorCode) },
+                                    customFlags = compilerFlags
+                                )
+                            }
                             val effectiveExec = executionResult ?: remember(editorCode, activeJdkVersion, stdinInput, runtimeArgs) {
                                 val jdk = JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(activeJdkVersion)
                                 val cls = Regex("""\b(?:class|record)\s+([A-Za-z_][A-Za-z0-9_]*)""").find(editorCode)?.groupValues?.getOrNull(1) ?: "Main"
@@ -816,10 +837,96 @@ fun CodeEditorWorkspaceScreen(
                                     runtimeArgs = runtimeArgs
                                 )
                             }
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val subsystemInspection = remember(editorCode, activeJdkVersion) {
+                                JavaCompilerAndExecutionEngine.inspectSubsystemRuntime(editorCode, activeJdkVersion)
+                            }
+                            val activeSpec = remember(activeJdkVersion) {
+                                JdkCatalogAndSpecifications.getSpec(activeJdkVersion)
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                // Compiler Step Banner
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                                    shape = RoundedCornerShape(6.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = "1. Compiler Pass: $ ${effectiveComp.compilerCommand}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontFamily = JetBrainsMonoFontFamily,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = if (effectiveComp.success) {
+                                                "✓ Compiled ${effectiveComp.generatedClasses.size} class(es) [0xCAFEBABE • Bytecode ${activeSpec.bytecodeMajor}.${activeSpec.bytecodeMinor}] in ${effectiveComp.durationMs}ms"
+                                            } else {
+                                                "✗ Compilation failed (${effectiveComp.diagnostics.size} error(s))"
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (effectiveComp.success) IdeEmeraldSuccess else MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+
+                                // Visual Subsystem Surface Preview (Applet / AWT / Swing / JDBC / Networking)
+                                if (subsystemInspection.detectedSubsystems.isNotEmpty() && effectiveExec.success) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                                            .testTag("subsystem_runtime_surface")
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Live Runtime Surface: ${subsystemInspection.windowTitle}",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Text(
+                                                    text = subsystemInspection.detectedSubsystems.joinToString(" • "),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = IdeEmeraldSuccess
+                                                )
+                                            }
+                                            if (subsystemInspection.elements.isNotEmpty()) {
+                                                FlowRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    subsystemInspection.elements.forEach { el ->
+                                                        Surface(
+                                                            color = MaterialTheme.colorScheme.surface,
+                                                            shape = RoundedCornerShape(4.dp),
+                                                            modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                                        ) {
+                                                            Text(
+                                                                text = "${el.kind}: ${el.titleOrText}",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                fontFamily = JetBrainsMonoFontFamily,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Runtime Execution Output
                                 Text(
-                                    text = "$ ${effectiveExec.runtimeCommand}",
+                                    text = "2. Runtime Execution: $ ${effectiveExec.runtimeCommand}",
                                     style = MaterialTheme.typography.labelSmall,
+                                    fontFamily = JetBrainsMonoFontFamily,
                                     color = MaterialTheme.colorScheme.secondary
                                 )
                                 if (effectiveExec.stdout.isNotBlank()) {
@@ -853,7 +960,7 @@ fun CodeEditorWorkspaceScreen(
                         }
 
                         1 -> {
-                            // Compiler Output
+                            // Compiler Output + Automatic Program Execution Output
                             val effectiveComp = compilationResult ?: remember(editorCode, activeJdkVersion, compilerFlags) {
                                 val jdk = JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(activeJdkVersion)
                                 JavaCompilerAndExecutionEngine.compileProject(
@@ -862,15 +969,38 @@ fun CodeEditorWorkspaceScreen(
                                     customFlags = compilerFlags
                                 )
                             }
-                            Text(
-                                text = effectiveComp.rawOutput,
-                                style = TextStyle(
-                                    fontFamily = JetBrainsMonoFontFamily,
-                                    fontSize = 12.sp,
-                                    color = if (effectiveComp.success) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
-                                ),
-                                modifier = Modifier.testTag("console_compiler_output_text")
-                            )
+                            val effectiveExec = executionResult ?: remember(editorCode, activeJdkVersion, stdinInput, runtimeArgs) {
+                                val jdk = JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(activeJdkVersion)
+                                val cls = Regex("""\b(?:class|record)\s+([A-Za-z_][A-Za-z0-9_]*)""").find(editorCode)?.groupValues?.getOrNull(1) ?: "Main"
+                                JavaCompilerAndExecutionEngine.executeProgram(
+                                    jdk = jdk,
+                                    files = openFiles.ifEmpty { mapOf("$cls.java" to editorCode) },
+                                    mainClass = cls,
+                                    stdinInput = stdinInput,
+                                    runtimeArgs = runtimeArgs
+                                )
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = effectiveComp.rawOutput,
+                                    style = TextStyle(
+                                        fontFamily = JetBrainsMonoFontFamily,
+                                        fontSize = 12.sp,
+                                        color = if (effectiveComp.success) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                                    ),
+                                    modifier = Modifier.testTag("console_compiler_output_text")
+                                )
+                                if (effectiveComp.success && effectiveExec.stdout.isNotBlank()) {
+                                    Text(
+                                        text = "=== Executed Program Output ($ ${effectiveExec.runtimeCommand}) ===\n${effectiveExec.stdout}",
+                                        style = TextStyle(
+                                            fontFamily = JetBrainsMonoFontFamily,
+                                            fontSize = 13.sp,
+                                            color = IdeEmeraldSuccess
+                                        )
+                                    )
+                                }
+                            }
                         }
 
                         2 -> {

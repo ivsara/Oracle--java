@@ -337,12 +337,13 @@ object VersionSyntaxHighlighter {
             }
 
             if (!trimmed.startsWith("//") && !trimmed.startsWith("*") && !textBlockScan) {
-                val codeOnly = lineText.substringBefore("//").trim()
+                val lineWithoutStrings = lineText.replace(stringRegex, "\"\"")
+                val codeOnly = lineWithoutStrings.substringBefore("//").trim()
 
                 // Real-time Missing Semicolon Detector
                 if (codeOnly.isNotEmpty() && requiresTrailingSemicolon(codeOnly)) {
                     syntaxErrCount++
-                    val lastNonSpaceIdx = lineText.substringBefore("//").indexOfLast { !it.isWhitespace() }
+                    val lastNonSpaceIdx = lineWithoutStrings.substringBefore("//").indexOfLast { !it.isWhitespace() }
                     if (lastNonSpaceIdx >= 0) {
                         val tokenStart = (lineOffsetCursor + (lastNonSpaceIdx - 4).coerceAtLeast(0))
                         val tokenEnd = lineOffsetCursor + lastNonSpaceIdx
