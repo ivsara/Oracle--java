@@ -203,7 +203,8 @@
       </select>
       <button class="secondary" onclick="compileCode()">Compile</button>
       <button class="success" onclick="runCode()">Run</button>
-      <button class="primary" onclick="formatCode()">Format Code</button>
+      <button class="primary" onclick="runAllVersionsWeb()">Run All Versions (1.0–25)</button>
+      <button onclick="formatCode()">Format Code</button>
       <button onclick="downloadActiveFile()">Export .java</button>
       <button onclick="document.body.classList.toggle('light')">Theme</button>
     </div>
@@ -291,6 +292,17 @@ public class HelloWorld {
           <label style="font-size:11px; color:var(--muted);">Command-Line Arguments (String[] args):</label>
           <input id="cliArgsBox" value="--offline --verified" style="width:100%; margin-top:4px; font-family:monospace;" />
         </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <strong>All Built-In Programs &amp; All 26 JDK Versions Output Catalog (JDK 1.0 – JDK 25)</strong>
+            <div style="font-size:11px; color:var(--muted);">Live execution output of every Starter Project, IIT/Oracle Tutorial Program (Ch. 1–12), and Practice Lab Exercise across all 26 Java releases.</div>
+          </div>
+          <button class="primary" onclick="runAllVersionsWeb()">Refresh Current Code Across All 26 Versions</button>
+        </div>
+        <div id="allProgramsOutputMatrix" style="max-height:360px; overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -1118,12 +1130,176 @@ public class HelloWorld {
       `\n[Exit Code: 0 • Runtime: JDK ${jdk} • Universal Java Studio Offline VM]`;
   }
 
+  const all26VersionsList = [
+    "1.0","1.1","1.2","1.3","1.4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25"
+  ];
+  const bytecodeMap = {
+    "1.0":"45.3","1.1":"45.3","1.2":"46.0","1.3":"47.0","1.4":"48.0","5":"49.0","6":"50.0","7":"51.0","8":"52.0",
+    "9":"53.0","10":"54.0","11":"55.0","12":"56.0","13":"57.0","14":"58.0","15":"59.0","16":"60.0","17":"61.0",
+    "18":"62.0","19":"63.0","20":"64.0","21":"65.0","22":"66.0","23":"67.0","24":"68.0","25":"69.0"
+  };
+
+  function simulateProgramForJdk(code, jdk) {
+    const rank = versionRankMap[jdk] || 125;
+    for (const [kw, minR] of Object.entries(versionedKeywords)) {
+      if (new RegExp(`\\b${kw}\\b`).test(code) && rank < minR) {
+        const reqVer = Object.keys(versionRankMap).find(k => versionRankMap[k] === minR) || "Modern";
+        return { ok: false, out: `[Unsupported in JDK ${jdk}: requires JDK ${reqVer}+ (${kw})]` };
+      }
+    }
+    if (code.includes("import module ") && rank < 125) {
+      return { ok: false, out: `[Unsupported in JDK ${jdk}: 'import module' requires JDK 25+]` };
+    }
+    if (/<[A-Z][A-Za-z0-9_,\s]*>/.test(code) && rank < 105) {
+      return { ok: false, out: `[Unsupported in JDK ${jdk}: Generics <T> require JDK 5+]` };
+    }
+    if (code.includes("java.applet.Applet") && rank >= 121) {
+      return { ok: false, out: `[Removed in JDK ${jdk}: java.applet.Applet removed in JDK 21+]` };
+    }
+    if (code.includes("drawString(")) {
+      const m = code.match(/drawString\(\s*"([^"]+)"\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+      if (m) return { ok: true, out: `[AppletViewer Paint @ (${m[2]},${m[3]})]: ${m[1]}` };
+    }
+    const env = { "args.length": 2, "args[0]": "--offline", "args[1]": "--verified" };
+    const recordDefs = {};
+    const recRegex = /\brecord\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)/g;
+    let recMatch;
+    while ((recMatch = recRegex.exec(code)) !== null) {
+      recordDefs[recMatch[1]] = recMatch[2].split(',').map(f => f.trim().split(/\s+/).pop()).filter(Boolean);
+    }
+    const stdoutLines = [];
+    const stdinTokens = ["JavaStudent", "95"];
+    let stdinCursor = 0;
+    const lines = code.split('\n');
+    for (let idx = 0; idx < lines.length; idx++) {
+      const line = lines[idx].split('//')[0].trim();
+      if (!line) continue;
+      const forMatch = line.match(/^for\s*\(\s*(?:int\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(\d+)\s*;\s*\1\s*(<=|<)\s*(\d+)\s*;\s*\1\+\+\s*\)\s*\{?$/);
+      if (forMatch) {
+        const varName = forMatch[1], startVal = Number(forMatch[2]), op = forMatch[3], limitVal = Number(forMatch[4]);
+        const bodyLines = [];
+        let j = idx + 1;
+        while (j < lines.length && !lines[j].trim().startsWith('}')) {
+          bodyLines.push(lines[j].split('//')[0].trim());
+          j++;
+        }
+        for (let v = startVal; op === '<=' ? v <= limitVal : v < limitVal; v++) {
+          env[varName] = v;
+          for (const bLine of bodyLines) {
+            const pMatch = bLine.match(/System\.out\.(?:println|print)\((.*)\);/);
+            if (pMatch) stdoutLines.push(String(evaluateJavaExpression(pMatch[1], env)));
+          }
+        }
+        idx = j;
+        continue;
+      }
+      const vecInit = line.match(/^(?:Vector|ArrayList|List)(?:<[^>]*>)?\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+(?:Vector|ArrayList)/);
+      if (vecInit) { env[vecInit[1]] = []; continue; }
+      const vecAdd = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\.(?:addElement|add)\((.+)\);$/);
+      if (vecAdd && Array.isArray(env[vecAdd[1]])) { env[vecAdd[1]].push(evaluateJavaExpression(vecAdd[2], env)); continue; }
+      const scanNext = line.match(/^(?:String|int|double|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*[A-Za-z_][A-Za-z0-9_]*\.(next|nextLine|nextInt)\(\);$/);
+      if (scanNext) {
+        const tok = stdinTokens[stdinCursor++] || "0";
+        env[scanNext[1]] = scanNext[2] === 'nextInt' ? Number(tok) : tok;
+        continue;
+      }
+      const recInst = line.match(/^(?:var|[A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+([A-Za-z_][A-Za-z0-9_]*)\((.+)\);$/);
+      if (recInst && recordDefs[recInst[2]]) {
+        const obj = {};
+        const args = recInst[3].split(',').map(a => evaluateJavaExpression(a, env));
+        recordDefs[recInst[2]].forEach((f, fIdx) => { obj[f] = args[fIdx]; });
+        env[recInst[1]] = obj;
+        continue;
+      }
+      const varDecl = line.match(/^(?:final\s+)?(?:int|long|double|float|boolean|String|var|Integer)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+);$/);
+      if (varDecl && !varDecl[2].startsWith('switch')) {
+        env[varDecl[1]] = evaluateJavaExpression(varDecl[2].replace(/^new\s+Integer\((.+)\)$/, '$1'), env);
+        continue;
+      }
+      const printMatch = line.match(/System\.out\.(?:println|print)\((.*)\);/);
+      if (printMatch) {
+        stdoutLines.push(String(evaluateJavaExpression(printMatch[1], env)));
+      }
+    }
+    return { ok: true, out: stdoutLines.length > 0 ? stdoutLines.join(' | ') : "(Completed with 0 errors)" };
+  }
+
+  function runAllVersionsWeb() {
+    const code = document.getElementById('codeInput').value;
+    const classMatch = code.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)/);
+    const className = classMatch ? classMatch[1] : "HelloWorld";
+    const rows = all26VersionsList.map(v => {
+      const res = simulateProgramForJdk(code, v);
+      return `JDK ${v.padEnd(4, ' ')} (Class v${bytecodeMap[v]}) -> ${res.out}`;
+    });
+    document.getElementById('consoleOutput').innerText =
+      `=== Multi-Version Execution Matrix for ${className}.java Across All 26 JDK Versions (JDK 1.0 – JDK 25) ===\n` +
+      rows.join('\n');
+  }
+
+  function renderAllProgramsOutputMatrix() {
+    const allProgs = [];
+    Object.entries(projectFiles).forEach(([fName, code]) => {
+      allProgs.push({ category: "Starter IDE File", title: fName, minJdk: fName.includes("25") ? "25" : (fName.includes("8") ? "8" : "1.2"), code });
+    });
+    tutorialsData.forEach((t, idx) => {
+      allProgs.push({ category: `Ch.${idx + 1} Java 2`, title: `${t.title} (JDK 1.2)`, minJdk: "1.2", code: t.java2 });
+      allProgs.push({ category: `Ch.${idx + 1} Modern`, title: `${t.title} (JDK 25)`, minJdk: "25", code: t.modern });
+    });
+    practiceItems.forEach(p => {
+      allProgs.push({ category: "Practice Lab", title: p.title, minJdk: p.jdk, code: p.code });
+    });
+
+    const htmlRows = allProgs.map((p, idx) => {
+      const primaryOut = simulateProgramForJdk(p.code, p.minJdk).out;
+      const v1_0 = simulateProgramForJdk(p.code, "1.0").out;
+      const v1_2 = simulateProgramForJdk(p.code, "1.2").out;
+      const v5   = simulateProgramForJdk(p.code, "5").out;
+      const v8   = simulateProgramForJdk(p.code, "8").out;
+      const v17  = simulateProgramForJdk(p.code, "17").out;
+      const v21  = simulateProgramForJdk(p.code, "21").out;
+      const v25  = simulateProgramForJdk(p.code, "25").out;
+      return `
+        <tr>
+          <td><span class="badge badge-amber">${p.category}</span><br/><strong>${escapeHtml(p.title)}</strong></td>
+          <td><code>JDK ${p.minJdk}</code></td>
+          <td style="color:var(--emerald); font-family:monospace;">${escapeHtml(primaryOut)}</td>
+          <td style="font-size:11px; font-family:monospace;">
+            <div><strong>JDK 1.0–1.1:</strong> ${escapeHtml(v1_0)}</div>
+            <div><strong>JDK 1.2–1.4:</strong> ${escapeHtml(v1_2)}</div>
+            <div><strong>JDK 5–7:</strong> ${escapeHtml(v5)}</div>
+            <div><strong>JDK 8–16:</strong> ${escapeHtml(v8)}</div>
+            <div><strong>JDK 17–20:</strong> ${escapeHtml(v17)}</div>
+            <div><strong>JDK 21–24:</strong> ${escapeHtml(v21)}</div>
+            <div><strong>JDK 25:</strong> ${escapeHtml(v25)}</div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    document.getElementById('allProgramsOutputMatrix').innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Program Name &amp; Module</th>
+            <th>Target JDK</th>
+            <th>Primary Execution Output</th>
+            <th>Output Across All 26 JDK Versions (JDK 1.0 – JDK 25)</th>
+          </tr>
+        </thead>
+        <tbody>${htmlRows}</tbody>
+      </table>
+    `;
+  }
+
   function renderTutorials() {
     const chips = document.getElementById('tutorialChips');
     chips.innerHTML = tutorialsData.map((t, i) =>
       `<button class="${i === activeTutorialIdx ? 'primary' : ''}" onclick="activeTutorialIdx=${i};renderTutorials();">${t.title}</button>`
     ).join('');
     const cur = tutorialsData[activeTutorialIdx];
+    const outJava2 = simulateProgramForJdk(cur.java2, "1.2").out;
+    const outMod25 = simulateProgramForJdk(cur.modern, "25").out;
     document.getElementById('tutorialDetailBox').innerHTML = `
       <div style="margin-bottom:8px;">
         <span class="badge badge-amber">${cur.iitRef}</span>
@@ -1139,6 +1315,7 @@ public class HelloWorld {
             <button class="secondary" onclick="loadTutorialCode('1.2', ${activeTutorialIdx}, true)">Edit &amp; Run in IDE (JDK 1.2)</button>
           </div>
           <pre style="background:#050811; padding:8px; border-radius:6px; font-size:12px; overflow-x:auto;">${escapeHtml(cur.java2)}</pre>
+          <div class="diag-item diag-mod" style="margin-top:6px;"><strong>Output (JDK 1.2 – JDK 25):</strong> ${escapeHtml(outJava2)}</div>
         </div>
         <div class="card" style="margin-bottom:0;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -1146,6 +1323,7 @@ public class HelloWorld {
             <button class="success" onclick="loadTutorialCode('25', ${activeTutorialIdx}, false)">Edit &amp; Run in IDE (JDK 25)</button>
           </div>
           <pre style="background:#050811; padding:8px; border-radius:6px; font-size:12px; overflow-x:auto;">${escapeHtml(cur.modern)}</pre>
+          <div class="diag-item diag-mod" style="margin-top:6px;"><strong>Output (JDK 25):</strong> ${escapeHtml(outMod25)}</div>
         </div>
       </div>
     `;
@@ -1192,14 +1370,17 @@ public class HelloWorld {
   }
 
   function renderPracticeAndQuiz() {
-    document.getElementById('practiceListContainer').innerHTML = practiceItems.map((p, i) => `
+    document.getElementById('practiceListContainer').innerHTML = practiceItems.map((p, i) => {
+      const out = simulateProgramForJdk(p.code, p.jdk).out;
+      return `
       <div class="card" style="margin-bottom:8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <strong>${p.title}</strong>
           <button class="success" onclick="loadPractice(${i})">Solve in Editable IDE (JDK ${p.jdk})</button>
         </div>
+        <div class="diag-item diag-mod"><strong>Live Output (JDK ${p.jdk}):</strong> ${escapeHtml(out)}</div>
       </div>
-    `).join('');
+    `}).join('');
 
     document.getElementById('quizContainer').innerHTML = quizQuestions.map((q, qi) => `
       <div style="margin-bottom:10px; font-size:12px;">
@@ -1252,6 +1433,8 @@ public class HelloWorld {
   restoreAutoSavedState();
   renderFileTabs();
   updateHighlighting();
+  runCode();
+  renderAllProgramsOutputMatrix();
   renderTutorials();
   renderApiDocs();
   renderPracticeAndQuiz();

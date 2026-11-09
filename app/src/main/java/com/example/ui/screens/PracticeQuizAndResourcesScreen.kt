@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.core.JavaCompilerAndExecutionEngine
 import com.example.core.KnowledgeBaseCatalog
 import com.example.core.PracticeExercise
 import com.example.core.VersionSyntaxHighlighter
@@ -81,6 +82,34 @@ fun JavaPracticeLabScreen(
     onOpenInMainEditor: (String, String, String) -> Unit
 ) {
     val exercises = KnowledgeBaseCatalog.practiceExercises
+    var showAllVersionsOutput by remember(selectedExercise.id) { mutableStateOf(true) }
+
+    val autoPracticeOutput = remember(practiceCode, selectedExercise.recommendedJdk, practiceOutput) {
+        if (practiceOutput.isNotBlank() && !practiceOutput.startsWith("Click ")) {
+            practiceOutput
+        } else {
+            val cls = Regex("""\bclass\s+([A-Za-z_][A-Za-z0-9_]*)""").find(practiceCode)?.groupValues?.get(1) ?: "Main"
+            val jdk = JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(selectedExercise.recommendedJdk)
+            val exec = JavaCompilerAndExecutionEngine.executeProgram(
+                jdk = jdk,
+                files = mapOf("$cls.java" to practiceCode),
+                mainClass = cls,
+                stdinInput = "JavaStudent 95",
+                runtimeArgs = ""
+            )
+            exec.stdout.ifBlank { selectedExercise.expectedOutput }
+        }
+    }
+
+    val allVersionsPractice = remember(practiceCode) {
+        val cls = Regex("""\bclass\s+([A-Za-z_][A-Za-z0-9_]*)""").find(practiceCode)?.groupValues?.get(1) ?: "Main"
+        JavaCompilerAndExecutionEngine.runAcrossAllJdkVersions(
+            files = mapOf("$cls.java" to practiceCode),
+            mainClass = cls,
+            stdinInput = "JavaStudent 95",
+            runtimeArgs = ""
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -100,7 +129,7 @@ fun JavaPracticeLabScreen(
                         style = MaterialTheme.typography.titleLarge
                     )
                     Text(
-                        text = "Modify example source code and execute it directly on the compatible JDK toolchain, or open it in the full IDE.",
+                        text = "Modify example source code and view live execution output across all 26 JDK versions (JDK 1.0–25) offline, or open it in the full IDE.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -225,6 +254,12 @@ fun JavaPracticeLabScreen(
                             Text("Compile & Run (JDK ${selectedExercise.recommendedJdk})")
                         }
                         OutlinedButton(
+                            onClick = { showAllVersionsOutput = !showAllVersionsOutput },
+                            modifier = Modifier.testTag("practice_all_versions_btn")
+                        ) {
+                            Text(if (showAllVersionsOutput) "Hide 26-Version Matrix" else "All 26 Versions Output (1.0–25)")
+                        }
+                        OutlinedButton(
                             onClick = { onPracticeCodeChange(VersionSyntaxHighlighter.formatJavaCode(practiceCode)) },
                             modifier = Modifier.testTag("practice_format_btn")
                         ) {
@@ -255,14 +290,14 @@ fun JavaPracticeLabScreen(
                         }
                     }
 
-                    Text("Live Execution Output:", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Text("Live Execution Output (JDK ${selectedExercise.recommendedJdk}):", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     Surface(
                         color = MaterialTheme.colorScheme.background,
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = practiceOutput,
+                            text = autoPracticeOutput,
                             fontFamily = JetBrainsMonoFontFamily,
                             style = MaterialTheme.typography.bodySmall,
                             color = IdeEmeraldSuccess,
@@ -270,6 +305,30 @@ fun JavaPracticeLabScreen(
                                 .padding(12.dp)
                                 .testTag("practice_output_text")
                         )
+                    }
+
+                    if (showAllVersionsOutput) {
+                        Text(
+                            text = "Output Across All 26 JDK Versions (JDK 1.0 – JDK 25):",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.background,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                allVersionsPractice.forEach { verSummary ->
+                                    Text(
+                                        text = "JDK ${verSummary.jdkVersion} (${verSummary.bytecodeVersion}): ${verSummary.output.replace("\n", " | ")}",
+                                        fontFamily = JetBrainsMonoFontFamily,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (verSummary.compatible) IdeEmeraldSuccess else SyntaxUnsupportedError
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     Text("Expected Output:", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)

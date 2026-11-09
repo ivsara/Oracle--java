@@ -69,6 +69,7 @@ import androidx.compose.runtime.mutableStateListOf
 import com.example.core.CompilationResult
 import com.example.core.DiagnosticCategory
 import com.example.core.ExecutionResult
+import com.example.core.JavaCompilerAndExecutionEngine
 import com.example.core.JdkCatalogAndSpecifications
 import com.example.core.SyntaxAnalysisReport
 import com.example.ui.theme.IdeEmeraldSuccess
@@ -217,6 +218,15 @@ fun CodeEditorWorkspaceScreen(
                             Icon(Icons.Default.PlayArrow, contentDescription = "Run", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Run")
+                        }
+                        Button(
+                            onClick = { onSelectConsoleTab(4) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.testTag("editor_run_all_versions_button")
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Run All Versions", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Run All Versions (1.0–25)")
                         }
                         OutlinedButton(
                             onClick = onFormatCode,
@@ -766,7 +776,9 @@ fun CodeEditorWorkspaceScreen(
                     "Program Output",
                     "Compiler Output",
                     "Bytecode Inspector",
-                    "Stdin & JVM Args"
+                    "Stdin & JVM Args",
+                    "All-Version Output (1.0–25)",
+                    "All 55 Programs Output"
                 )
                 ScrollableTabRow(
                     selectedTabIndex = activeConsoleTab.coerceIn(0, consoleTabs.lastIndex),
@@ -786,76 +798,79 @@ fun CodeEditorWorkspaceScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 150.dp, max = 260.dp)
+                        .heightIn(min = 180.dp, max = 380.dp)
                         .padding(12.dp)
                         .verticalScroll(consoleScrollState)
                 ) {
                     when (activeConsoleTab.coerceIn(0, consoleTabs.lastIndex)) {
                         0 -> {
-                            // Program Output
-                            if (executionResult == null) {
-                                Text(
-                                    text = "Click 'Run' to compile and execute $activeFileName on JDK $activeJdkVersion runtime.",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            // Program Output (auto-evaluates current program if executionResult is null)
+                            val effectiveExec = executionResult ?: remember(editorCode, activeJdkVersion, stdinInput, runtimeArgs) {
+                                val jdk = JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(activeJdkVersion)
+                                val cls = Regex("""\b(?:class|record)\s+([A-Za-z_][A-Za-z0-9_]*)""").find(editorCode)?.groupValues?.getOrNull(1) ?: "Main"
+                                JavaCompilerAndExecutionEngine.executeProgram(
+                                    jdk = jdk,
+                                    files = openFiles.ifEmpty { mapOf("$cls.java" to editorCode) },
+                                    mainClass = cls,
+                                    stdinInput = stdinInput,
+                                    runtimeArgs = runtimeArgs
                                 )
-                            } else {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "$ ${effectiveExec.runtimeCommand}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                if (effectiveExec.stdout.isNotBlank()) {
                                     Text(
-                                        text = "$ ${executionResult.runtimeCommand}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.secondary
-                                    )
-                                    if (executionResult.stdout.isNotBlank()) {
-                                        Text(
-                                            text = executionResult.stdout,
-                                            style = TextStyle(
-                                                fontFamily = JetBrainsMonoFontFamily,
-                                                fontSize = 13.sp,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            ),
-                                            modifier = Modifier.testTag("console_stdout_text")
-                                        )
-                                    }
-                                    if (executionResult.stderr.isNotBlank()) {
-                                        Text(
-                                            text = executionResult.stderr,
-                                            style = TextStyle(
-                                                fontFamily = JetBrainsMonoFontFamily,
-                                                fontSize = 13.sp,
-                                                color = MaterialTheme.colorScheme.error
-                                            ),
-                                            modifier = Modifier.testTag("console_stderr_text")
-                                        )
-                                    }
-                                    Text(
-                                        text = "Process finished with exit code ${executionResult.exitCode} in ${executionResult.durationMs}ms (JDK ${executionResult.jdkVersion}).",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (executionResult.success) IdeEmeraldSuccess else MaterialTheme.colorScheme.error
+                                        text = effectiveExec.stdout,
+                                        style = TextStyle(
+                                            fontFamily = JetBrainsMonoFontFamily,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        modifier = Modifier.testTag("console_stdout_text")
                                     )
                                 }
+                                if (effectiveExec.stderr.isNotBlank()) {
+                                    Text(
+                                        text = effectiveExec.stderr,
+                                        style = TextStyle(
+                                            fontFamily = JetBrainsMonoFontFamily,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.error
+                                        ),
+                                        modifier = Modifier.testTag("console_stderr_text")
+                                    )
+                                }
+                                Text(
+                                    text = "Process finished with exit code ${effectiveExec.exitCode} in ${effectiveExec.durationMs}ms (JDK ${effectiveExec.jdkVersion}).",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (effectiveExec.success) IdeEmeraldSuccess else MaterialTheme.colorScheme.error
+                                )
                             }
                         }
 
                         1 -> {
                             // Compiler Output
-                            if (compilationResult == null) {
-                                Text(
-                                    text = "Click 'Compile' to invoke the JDK $activeJdkVersion compiler verification engine.",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
-                                Text(
-                                    text = compilationResult.rawOutput,
-                                    style = TextStyle(
-                                        fontFamily = JetBrainsMonoFontFamily,
-                                        fontSize = 12.sp,
-                                        color = if (compilationResult.success) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
-                                    ),
-                                    modifier = Modifier.testTag("console_compiler_output_text")
+                            val effectiveComp = compilationResult ?: remember(editorCode, activeJdkVersion, compilerFlags) {
+                                val jdk = JavaCompilerAndExecutionEngine.buildJdkEntityForVersion(activeJdkVersion)
+                                JavaCompilerAndExecutionEngine.compileProject(
+                                    jdk = jdk,
+                                    files = openFiles.ifEmpty { mapOf(activeFileName to editorCode) },
+                                    customFlags = compilerFlags
                                 )
                             }
+                            Text(
+                                text = effectiveComp.rawOutput,
+                                style = TextStyle(
+                                    fontFamily = JetBrainsMonoFontFamily,
+                                    fontSize = 12.sp,
+                                    color = if (effectiveComp.success) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                                ),
+                                modifier = Modifier.testTag("console_compiler_output_text")
+                            )
                         }
 
                         2 -> {
@@ -911,6 +926,168 @@ fun CodeEditorWorkspaceScreen(
                                         singleLine = true,
                                         modifier = Modifier.weight(1f)
                                     )
+                                }
+                            }
+                        }
+
+                        4 -> {
+                            // All-Version Output (JDK 1.0 – JDK 25) for Current Editor Program
+                            val allVersionOutputs = remember(editorCode, stdinInput, runtimeArgs) {
+                                JavaCompilerAndExecutionEngine.runAcrossAllJdkVersions(
+                                    files = openFiles.ifEmpty { mapOf(activeFileName to editorCode) },
+                                    stdinInput = stdinInput,
+                                    runtimeArgs = runtimeArgs
+                                )
+                            }
+                            val compatibleCount = allVersionOutputs.count { it.compatible }
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.testTag("all_versions_output_panel")
+                            ) {
+                                Text(
+                                    text = "All-Version Execution Matrix for $activeFileName ($compatibleCount / ${allVersionOutputs.size} JDK Versions Compatible)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                allVersionOutputs.forEach { report ->
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.background,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(
+                                                1.dp,
+                                                (if (report.compatible) IdeEmeraldSuccess else SyntaxUnsupportedError).copy(alpha = 0.4f),
+                                                RoundedCornerShape(8.dp)
+                                            )
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "JDK ${report.jdkVersion} (${report.codename} • ${report.releaseYear}) — Bytecode ${report.bytecodeVersion}",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (report.compatible) IdeEmeraldSuccess else SyntaxUnsupportedError
+                                                )
+                                                Text(
+                                                    text = if (report.compatible) "✓ EXECUTED" else "✗ UNSUPPORTED",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (report.compatible) IdeEmeraldSuccess else SyntaxUnsupportedError
+                                                )
+                                            }
+                                            Text(
+                                                text = "$ ${report.runtimeCommand}",
+                                                fontFamily = JetBrainsMonoFontFamily,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                            Text(
+                                                text = report.output,
+                                                fontFamily = JetBrainsMonoFontFamily,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (report.compatible) MaterialTheme.colorScheme.onSurface else SyntaxUnsupportedError
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        5 -> {
+                            // All 55 Built-In Programs Output Catalog (Starter Projects, Tutorials Java 2 & Modern, Practice Lab)
+                            val allPrograms = remember { JavaCompilerAndExecutionEngine.getAllBuiltInPrograms() }
+                            var expandedProgramId by remember { mutableStateOf<String?>(null) }
+
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.testTag("all_programs_output_catalog")
+                            ) {
+                                Text(
+                                    text = "Complete Output Catalog — All ${allPrograms.size} Programs Across All JDK Versions (JDK 1.0 – JDK 25)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                allPrograms.forEach { prog ->
+                                    val isExpanded = expandedProgramId == prog.id
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.background,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "[${prog.category}] ${prog.title}",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                    Text(
+                                                        text = "Default Target: JDK ${prog.targetJdk} | Compatible Range: ${prog.compatibleRange}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.secondary
+                                                    )
+                                                }
+                                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    OutlinedButton(
+                                                        onClick = {
+                                                            expandedProgramId = if (isExpanded) null else prog.id
+                                                        }
+                                                    ) {
+                                                        Text(
+                                                            if (isExpanded) "Hide 26 Versions" else "All 26 Versions",
+                                                            style = MaterialTheme.typography.labelSmall
+                                                        )
+                                                    }
+                                                    Button(
+                                                        onClick = {
+                                                            onSwitchJdkVersion(prog.targetJdk)
+                                                            pushCodeUpdate(prog.sourceCode)
+                                                            onSelectConsoleTab(4)
+                                                        }
+                                                    ) {
+                                                        Text("Load & Run All", style = MaterialTheme.typography.labelSmall)
+                                                    }
+                                                }
+                                            }
+                                            Text(
+                                                text = "Output on JDK ${prog.targetJdk}:\n${prog.targetOutput}",
+                                                fontFamily = JetBrainsMonoFontFamily,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = IdeEmeraldSuccess
+                                            )
+
+                                            if (isExpanded) {
+                                                val perVersionList = remember(prog.id) {
+                                                    JavaCompilerAndExecutionEngine.runAcrossAllJdkVersions(
+                                                        files = mapOf("Program.java" to prog.sourceCode),
+                                                        stdinInput = "JavaStudent 95"
+                                                    )
+                                                }
+                                                perVersionList.forEach { verRep ->
+                                                    Text(
+                                                        text = "• JDK ${verRep.jdkVersion} (${verRep.bytecodeVersion}): ${if (verRep.compatible) verRep.output.replace("\n", " | ") else "Unsupported — " + verRep.output.lines().lastOrNull()}",
+                                                        fontFamily = JetBrainsMonoFontFamily,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = if (verRep.compatible) MaterialTheme.colorScheme.onSurface else SyntaxUnsupportedError
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

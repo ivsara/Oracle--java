@@ -187,8 +187,13 @@ fun OfflineTutorialsScreen(
     // Editable state for Historical Java 2 (JDK 1.2) and Modern Java (JDK 25) tutorial sandboxes
     var editableJava2Code by remember(selectedLesson.id) { mutableStateOf(selectedLesson.java2ExampleCode) }
     var editableModernCode by remember(selectedLesson.id) { mutableStateOf(selectedLesson.modernJavaExampleCode) }
-    var java2InlineOutput by remember(selectedLesson.id) { mutableStateOf<String?>(null) }
-    var modernInlineOutput by remember(selectedLesson.id) { mutableStateOf<String?>(null) }
+    var java2InlineOutput by remember(selectedLesson.id) {
+        mutableStateOf<String?>(runInlineSnippet("1.2", selectedLesson.java2ExampleCode))
+    }
+    var modernInlineOutput by remember(selectedLesson.id) {
+        mutableStateOf<String?>(runInlineSnippet("25", selectedLesson.modernJavaExampleCode))
+    }
+    var showAllVersionsForLesson by remember(selectedLesson.id) { mutableStateOf(false) }
 
     val java2SyntaxReport = remember(editableJava2Code) {
         VersionSyntaxHighlighter.analyzeAndHighlight(editableJava2Code, "1.2")
@@ -216,7 +221,7 @@ fun OfflineTutorialsScreen(
                         style = MaterialTheme.typography.titleLarge
                     )
                     Text(
-                        text = "Structured curriculum organized from IIT Kharagpur NPTEL Programming in Java, Oracle Java SE 7 API, and Oracle Java Tutorials. Every code block below is directly editable and executable offline.",
+                        text = "Structured curriculum organized from IIT Kharagpur NPTEL Programming in Java, Oracle Java SE 7 API, and Oracle Java Tutorials. Every code block below is directly editable and shows live output across all JDK versions offline.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -380,11 +385,27 @@ fun OfflineTutorialsScreen(
                     }
 
                     // 6. Directly Editable & Runnable Side-by-Side Java 2 (JDK 1.2) vs Modern Java (JDK 25) Sandboxes
-                    Text(
-                        text = "6. Interactive Editable Example Programs (Edit & Run Directly Offline or Load in Main IDE)",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "6. Interactive Editable Example Programs & Live Outputs (JDK 1.0–25)",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedButton(
+                            onClick = { showAllVersionsForLesson = !showAllVersionsForLesson },
+                            modifier = Modifier.testTag("toggle_all_versions_lesson_btn")
+                        ) {
+                            Text(
+                                text = if (showAllVersionsForLesson) "Hide 26-Version Matrix" else "Show Output in All 26 Versions (1.0–25)",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -423,7 +444,10 @@ fun OfflineTutorialsScreen(
 
                                 BasicTextField(
                                     value = editableJava2Code,
-                                    onValueChange = { editableJava2Code = it },
+                                    onValueChange = {
+                                        editableJava2Code = it
+                                        java2InlineOutput = runInlineSnippet("1.2", it)
+                                    },
                                     textStyle = TextStyle(
                                         fontFamily = JetBrainsMonoFontFamily,
                                         fontSize = 12.sp,
@@ -463,7 +487,7 @@ fun OfflineTutorialsScreen(
                                     OutlinedButton(
                                         onClick = {
                                             editableJava2Code = selectedLesson.java2ExampleCode
-                                            java2InlineOutput = null
+                                            java2InlineOutput = runInlineSnippet("1.2", selectedLesson.java2ExampleCode)
                                         }
                                     ) {
                                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
@@ -537,7 +561,10 @@ fun OfflineTutorialsScreen(
 
                                 BasicTextField(
                                     value = editableModernCode,
-                                    onValueChange = { editableModernCode = it },
+                                    onValueChange = {
+                                        editableModernCode = it
+                                        modernInlineOutput = runInlineSnippet("25", it)
+                                    },
                                     textStyle = TextStyle(
                                         fontFamily = JetBrainsMonoFontFamily,
                                         fontSize = 12.sp,
@@ -577,7 +604,7 @@ fun OfflineTutorialsScreen(
                                     OutlinedButton(
                                         onClick = {
                                             editableModernCode = selectedLesson.modernJavaExampleCode
-                                            modernInlineOutput = null
+                                            modernInlineOutput = runInlineSnippet("25", selectedLesson.modernJavaExampleCode)
                                         }
                                     ) {
                                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
@@ -614,6 +641,49 @@ fun OfflineTutorialsScreen(
                                             modifier = Modifier.padding(8.dp)
                                         )
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                    if (showAllVersionsForLesson) {
+                        val allJava2Versions = remember(editableJava2Code) {
+                            val cls = Regex("""\bclass\s+([A-Za-z_][A-Za-z0-9_]*)""").find(editableJava2Code)?.groupValues?.get(1) ?: "Main"
+                            JavaCompilerAndExecutionEngine.runAcrossAllJdkVersions(
+                                files = mapOf("$cls.java" to editableJava2Code),
+                                mainClass = cls,
+                                stdinInput = "JavaStudent 95",
+                                runtimeArgs = ""
+                            )
+                        }
+                        val allModernVersions = remember(editableModernCode) {
+                            val cls = Regex("""\bclass\s+([A-Za-z_][A-Za-z0-9_]*)""").find(editableModernCode)?.groupValues?.get(1) ?: "Main"
+                            JavaCompilerAndExecutionEngine.runAcrossAllJdkVersions(
+                                files = mapOf("$cls.java" to editableModernCode),
+                                mainClass = cls,
+                                stdinInput = "JavaStudent 95",
+                                runtimeArgs = ""
+                            )
+                        }
+                        Surface(
+                            color = MaterialTheme.colorScheme.background,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "All 26 JDK Versions Execution Matrix (JDK 1.0 – JDK 25)",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                allJava2Versions.zip(allModernVersions).forEach { (j2, mod) ->
+                                    Text(
+                                        text = "JDK ${j2.jdkVersion} (v${j2.bytecodeVersion}) | Java 2 Program -> ${j2.output.replace("\n", " | ")} || Modern Program -> ${mod.output.replace("\n", " | ")}",
+                                        fontFamily = JetBrainsMonoFontFamily,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
                                 }
                             }
                         }
@@ -795,7 +865,9 @@ fun OfflineApiDocumentationScreen(
                     """.trimIndent()
                 }
                 var apiEditableCode by remember(selectedClassDoc.id) { mutableStateOf(defaultApiSnippet) }
-                var apiSandboxOutput by remember(selectedClassDoc.id) { mutableStateOf<String?>(null) }
+                var apiSandboxOutput by remember(selectedClassDoc.id, selectedJdkFilter) {
+                    mutableStateOf<String?>(runInlineSnippet(selectedJdkFilter, defaultApiSnippet))
+                }
                 val apiSyntaxReport = remember(apiEditableCode, selectedJdkFilter) {
                     VersionSyntaxHighlighter.analyzeAndHighlight(apiEditableCode, selectedJdkFilter)
                 }
