@@ -59,8 +59,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
 import com.example.core.CompilationResult
 import com.example.core.DiagnosticCategory
 import com.example.core.ExecutionResult
@@ -110,6 +115,27 @@ fun CodeEditorWorkspaceScreen(
     var showFindBar by remember { mutableStateOf(false) }
     var showNewFilePrompt by remember { mutableStateOf(false) }
     var newFileNameText by remember { mutableStateOf("") }
+
+    // Undo / Redo History Stack for Real-World IDE Editing
+    val undoStack = remember(activeFileName) { mutableStateListOf<String>() }
+    val redoStack = remember(activeFileName) { mutableStateListOf<String>() }
+
+    LaunchedEffect(activeFileName) {
+        if (undoStack.isEmpty()) {
+            undoStack.add(editorCode)
+        }
+    }
+
+    fun pushCodeUpdate(newCode: String) {
+        if (newCode != editorCode) {
+            if (undoStack.isEmpty() || undoStack.last() != editorCode) {
+                undoStack.add(editorCode)
+                if (undoStack.size > 40) undoStack.removeAt(0)
+            }
+            redoStack.clear()
+            onCodeChange(newCode)
+        }
+    }
 
     val allVersions = JdkCatalogAndSpecifications.allVersionSpecs.map { it.versionId }
     val editorScrollState = rememberScrollState()
@@ -392,7 +418,7 @@ fun CodeEditorWorkspaceScreen(
                     FilterChip(
                         selected = false,
                         onClick = {
-                            onCodeChange(
+                            pushCodeUpdate(
                                 """
                                 import java.util.Vector;
 
@@ -413,7 +439,7 @@ fun CodeEditorWorkspaceScreen(
                     FilterChip(
                         selected = false,
                         onClick = {
-                            onCodeChange(
+                            pushCodeUpdate(
                                 """
                                 import module java.base;
 
@@ -439,7 +465,7 @@ fun CodeEditorWorkspaceScreen(
                     FilterChip(
                         selected = false,
                         onClick = {
-                            onCodeChange(
+                            pushCodeUpdate(
                                 """
                                 import java.applet.Applet;
 
@@ -460,7 +486,7 @@ fun CodeEditorWorkspaceScreen(
                     FilterChip(
                         selected = false,
                         onClick = {
-                            onCodeChange(
+                            pushCodeUpdate(
                                 """
                                 public class SyntaxErrorDemo {
                                     public static void main(String[] args) {
@@ -477,12 +503,124 @@ fun CodeEditorWorkspaceScreen(
                     )
                 }
 
-                // Line Number Gutter + Highlighted Editable Code Surface
+                // Real-World IDE Developer Edit & Snippet Toolbar (Undo, Redo, Live Snippets)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "IDE Edit & Snippets:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            if (undoStack.size > 1) {
+                                redoStack.add(editorCode)
+                                val prev = undoStack.removeAt(undoStack.lastIndex)
+                                onCodeChange(prev)
+                            }
+                        },
+                        enabled = undoStack.size > 1,
+                        modifier = Modifier.testTag("editor_undo_btn")
+                    ) {
+                        Text("Undo", style = MaterialTheme.typography.labelSmall)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            if (redoStack.isNotEmpty()) {
+                                undoStack.add(editorCode)
+                                val next = redoStack.removeAt(redoStack.lastIndex)
+                                onCodeChange(next)
+                            }
+                        },
+                        enabled = redoStack.isNotEmpty(),
+                        modifier = Modifier.testTag("editor_redo_btn")
+                    ) {
+                        Text("Redo", style = MaterialTheme.typography.labelSmall)
+                    }
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            pushCodeUpdate(
+                                editorCode.trimEnd() + "\n    public static void main(String[] args) {\n        System.out.println(\"Ready\");\n    }\n}"
+                            )
+                        },
+                        label = { Text("+ psvm") },
+                        modifier = Modifier.testTag("snippet_psvm_btn")
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            val idx = editorCode.lastIndexOf('}')
+                            val updated = if (idx > 0) {
+                                editorCode.substring(0, idx) + "    System.out.println(\"Output value\");\n" + editorCode.substring(idx)
+                            } else {
+                                editorCode + "\nSystem.out.println(\"Output value\");"
+                            }
+                            pushCodeUpdate(updated)
+                        },
+                        label = { Text("+ sout") },
+                        modifier = Modifier.testTag("snippet_sout_btn")
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            val idx = editorCode.lastIndexOf('}')
+                            val loopSnippet = "    for (int i = 0; i < 5; i++) {\n            System.out.println(\"Iteration: \" + i);\n        }\n"
+                            val updated = if (idx > 0) {
+                                editorCode.substring(0, idx) + loopSnippet + editorCode.substring(idx)
+                            } else {
+                                editorCode + "\n" + loopSnippet
+                            }
+                            pushCodeUpdate(updated)
+                        },
+                        label = { Text("+ for-loop") },
+                        modifier = Modifier.testTag("snippet_for_btn")
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            val idx = editorCode.lastIndexOf('}')
+                            val trySnippet = "    try {\n            System.out.println(\"Protected block\");\n        } catch (Exception e) {\n            System.out.println(\"Caught: \" + e.getMessage());\n        }\n"
+                            val updated = if (idx > 0) {
+                                editorCode.substring(0, idx) + trySnippet + editorCode.substring(idx)
+                            } else {
+                                editorCode + "\n" + trySnippet
+                            }
+                            pushCodeUpdate(updated)
+                        },
+                        label = { Text("+ try-catch") },
+                        modifier = Modifier.testTag("snippet_try_btn")
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            pushCodeUpdate(
+                                editorCode + "\n// Record declaration (JDK 16+):\nrecord StudentRecord(String rollNo, int marks) {}\n"
+                            )
+                        },
+                        label = { Text("+ record (16+)") },
+                        modifier = Modifier.testTag("snippet_record_btn")
+                    )
+                    Text(
+                        text = "Lines: ${editorCode.lines().size} • Chars: ${editorCode.length}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Line Number Gutter + Directly Editable Real-World Syntax-Highlighted Code Surface
                 val codeLines = editorCode.lines()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 240.dp, max = 380.dp)
+                        .heightIn(min = 240.dp, max = 400.dp)
                         .verticalScroll(editorScrollState)
                         .padding(vertical = 10.dp)
                 ) {
@@ -526,36 +664,29 @@ fun CodeEditorWorkspaceScreen(
                             .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                     )
 
-                    // Synchronized Highlighted Overlay + Editable BasicTextField
+                    // Single-Layer Directly Editable BasicTextField with Live Syntax Highlighting VisualTransformation
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 12.dp)
+                            .testTag("highlighted_code_display")
                     ) {
-                        // Layer 1: Version-Aware Syntax Highlighted AnnotatedString
-                        Text(
-                            text = syntaxReport.annotatedCode,
-                            style = TextStyle(
+                        val syntaxVisualTransformation = remember(syntaxReport.annotatedCode) {
+                            VisualTransformation {
+                                TransformedText(syntaxReport.annotatedCode, OffsetMapping.Identity)
+                            }
+                        }
+
+                        BasicTextField(
+                            value = editorCode,
+                            onValueChange = { updated -> pushCodeUpdate(updated) },
+                            textStyle = TextStyle(
                                 fontFamily = JetBrainsMonoFontFamily,
                                 fontSize = 13.sp,
                                 lineHeight = 20.sp,
                                 color = MaterialTheme.colorScheme.onBackground
                             ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("highlighted_code_display")
-                        )
-
-                        // Layer 2: Transparent-ink editable BasicTextField with visible cursor
-                        BasicTextField(
-                            value = editorCode,
-                            onValueChange = onCodeChange,
-                            textStyle = TextStyle(
-                                fontFamily = JetBrainsMonoFontFamily,
-                                fontSize = 13.sp,
-                                lineHeight = 20.sp,
-                                color = Color.Transparent
-                            ),
+                            visualTransformation = syntaxVisualTransformation,
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             modifier = Modifier
                                 .fillMaxWidth()
